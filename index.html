@@ -3,154 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simple Mobile Breakout</title>
+    <title>Retro Thread the Needle</title>
     <style>
-        body { margin: 0; background: #222; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
-        canvas { background: #000; display: block; border: 2px solid #fff; max-width: 100%; max-height: 100%; }
-        #msg { position: absolute; color: white; font-size: 24px; pointer-events: none; text-align: center; }
+        body { margin: 0; background: #99eeff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
+        canvas { background: #fff; display: block; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.2); max-width: 100%; max-height: 100%; }
+        #ui { position: absolute; color: #333; pointer-events: none; text-align: center; width: 100%; }
+        #score { top: 10px; font-size: 32px; font-weight: bold; }
+        #msg { top: 50%; transform: translateY(-50%); font-size: 20px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
-    <div id="msg">画面をタップしてスタート！</div>
+    <div id="ui">
+        <div id="score">0</div>
+        <div id="msg">画面を長押しで上昇<br>離して下降</div>
+    </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const msg = document.getElementById("msg");
+    const scoreEl = document.getElementById("score");
+    const msgEl = document.getElementById("msg");
 
-    // 画面サイズ設定
-    canvas.width = 320;
-    canvas.height = 480;
+    // 画面サイズ設定 (レトロ感出すために少し小さめのアスペクト比)
+    canvas.width = 360;
+    canvas.height = 640;
 
-    let ballRadius = 10;
-    let x = canvas.width / 2;
-    let y = canvas.height - 30;
-    let dx = 2;
-    let dy = -2;
+    // ゲーム状態
+    let gameState = "ready"; // ready, playing, over
+    let score = 0;
+    let frameCount = 0;
 
-    const paddleHeight = 10;
-    const paddleWidth = 75;
-    let paddleX = (canvas.width - paddleWidth) / 2;
+    // 針（プレイヤー）の設定
+    const needle = {
+        x: 50,
+        y: canvas.height / 2,
+        width: 40,
+        height: 4,
+        dy: 0,
+        gravity: 0.15,
+        lift: -4,
+        isLifting: false
+    };
 
-    const brickRowCount = 5;
-    const brickColumnCount = 4;
-    const brickWidth = 60;
-    const brickHeight = 20;
-    const brickPadding = 10;
-    const brickOffsetTop = 30;
-    const brickOffsetLeft = 25;
+    // 糸（障害物）の設定
+    const walls = [];
+    const wallWidth = 20; // 糸の太さ
+    let wallGap = 180; // 初期の通れる隙間
+    const minGap = 80;   // 最小の隙間
+    const wallSpeed = 2; // 画面が流れる速度
 
-    let bricks = [];
-    for(let c=0; c<brickColumnCount; c++) {
-        bricks[c] = [];
-        for(let r=0; r<brickRowCount; r++) {
-            bricks[c][r] = { x: 0, y: 0, status: 1 };
+    // 入力検知
+    window.addEventListener("mousedown", startLift);
+    window.addEventListener("mouseup", stopLift);
+    window.addEventListener("touchstart", (e) => { e.preventDefault(); startLift(); }, {passive: false});
+    window.addEventListener("touchend", stopLift);
+
+    function startLift() {
+        if (gameState === "ready") {
+            startGame();
+        } else if (gameState === "playing") {
+            needle.isLifting = true;
+        } else if (gameState === "over") {
+            if(frameCount > 30) resetGame(); // 少し待ってからリセット可能に
         }
     }
 
-    let score = 0;
-    let gameRunning = false;
-
-    // タッチ・マウス操作
-    document.addEventListener("touchstart", handleTouch, {passive: false});
-    document.addEventListener("touchmove", handleTouch, {passive: false});
-    document.addEventListener("mousedown", () => { if(!gameRunning) startGame(); });
-
-    function handleTouch(e) {
-        e.preventDefault();
-        if(!gameRunning) startGame();
-        let touch = e.touches[0];
-        let relativeX = touch.clientX - canvas.offsetLeft;
-        if(relativeX > 0 && relativeX < canvas.width) {
-            paddleX = relativeX - paddleWidth / 2;
-        }
+    function stopLift() {
+        needle.isLifting = false;
     }
 
     function startGame() {
-        gameRunning = true;
-        msg.style.display = "none";
-        draw();
+        gameState = "playing";
+        msgEl.style.display = "none";
+        needle.dy = needle.lift; // スタート時に少し浮かせる
     }
 
-    function collisionDetection() {
-        for(let c=0; c<brickColumnCount; c++) {
-            for(let r=0; r<brickRowCount; r++) {
-                let b = bricks[c][r];
-                if(b.status == 1) {
-                    if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
-                        dy = -dy;
-                        b.status = 0;
-                        score++;
-                        if(score == brickRowCount * brickColumnCount) {
-                            alert("クリア！おめでとう！");
-                            document.location.reload();
-                        }
-                    }
-                }
-            }
+    function resetGame() {
+        gameState = "ready";
+        msgEl.style.display = "block";
+        msgEl.innerHTML = "画面を長押しで上昇<br>離して下降";
+        score = 0;
+        scoreEl.innerText = "0";
+        needle.y = canvas.height / 2;
+        needle.dy = 0;
+        walls.length = 0;
+        wallGap = 180;
+        frameCount = 0;
+        gameLoop(); // 描画のみの状態に戻す
+    }
+
+    function gameOver() {
+        gameState = "over";
+        msgEl.style.display = "block";
+        msgEl.innerHTML = `GAME OVER<br>Score: ${score}<br>タップでリトライ`;
+        frameCount = 0; // リトライまでのウェイト用
+    }
+
+    // 障害物の生成
+    function spawnWall() {
+        const lastWall = walls[walls.length - 1];
+        let nextY;
+
+        if (lastWall) {
+            // 前回の隙間の中央を基準に、上下にランダムにずらす
+            const lastMidY = lastWall.top + (lastWall.gap / 2);
+            const change = (Math.random() - 0.5) * 150; // ずれる幅
+            nextY = lastMidY + change;
+        } else {
+            nextY = canvas.height / 2;
+        }
+
+        // 画面外に出すぎないように調整
+        const padding = 50;
+        nextY = Math.max(padding + wallGap/2, Math.min(canvas.height - padding - wallGap/2, nextY));
+
+        const topHeight = nextY - (wallGap / 2);
+
+        walls.push({
+            x: canvas.width,
+            top: topHeight,
+            gap: wallGap
+        });
+
+        // 難易度上昇：徐々に隙間を狭くする
+        if (wallGap > minGap) {
+            wallGap -= 0.5;
         }
     }
 
-    function drawBall() {
-        ctx.beginPath();
-        ctx.arc(x, y, ballRadius, 0, Math.PI*2);
-        ctx.fillStyle = "#0095DD";
-        ctx.fill();
-        ctx.closePath();
-    }
+    // 衝突判定
+    function checkCollision() {
+        // 天井と床
+        if (needle.y < 0 || needle.y + needle.height > canvas.height) {
+            return true;
+        }
 
-    function drawPaddle() {
-        ctx.beginPath();
-        ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
-        ctx.fillStyle = "#0095DD";
-        ctx.fill();
-        ctx.closePath();
-    }
-
-    function drawBricks() {
-        for(let c=0; c<brickColumnCount; c++) {
-            for(let r=0; r<brickRowCount; r++) {
-                if(bricks[c][r].status == 1) {
-                    let brickX = (r*(brickWidth+brickPadding))+brickOffsetLeft;
-                    let brickY = (c*(brickHeight+brickPadding))+brickOffsetTop;
-                    bricks[c][r].x = brickX;
-                    bricks[c][r].y = brickY;
-                    ctx.beginPath();
-                    ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                    ctx.fillStyle = "#FF5733";
-                    ctx.fill();
-                    ctx.closePath();
+        // 糸（壁）
+        for (let i = 0; i < walls.length; i++) {
+            let w = walls[i];
+            // 針の先端（右端）が壁の横幅にあるか
+            if (needle.x + needle.width > w.x && needle.x < w.x + wallWidth) {
+                // 上の壁または下の壁に当たったか
+                if (needle.y < w.top || needle.y + needle.height > w.top + w.gap) {
+                    return true;
                 }
             }
         }
+        return false;
     }
 
+    // 更新処理
+    function update() {
+        if (gameState !== "playing") {
+            frameCount++;
+            if (gameState === "ready") {
+                // タイトル画面では針を上下にふわふわさせる
+                needle.y = canvas.height / 2 + Math.sin(frameCount / 10) * 10;
+            }
+            return;
+        }
+
+        frameCount++;
+
+        // 物理演算
+        if (needle.isLifting) {
+            needle.dy += needle.lift * 0.1; // 徐々に加速
+        } else {
+            needle.dy += needle.gravity;
+        }
+        // 速度制限
+        needle.dy = Math.max(-5, Math.min(5, needle.dy));
+        needle.y += needle.dy;
+
+        // 障害物の移動と生成
+        for (let i = walls.length - 1; i >= 0; i--) {
+            walls[i].x -= wallSpeed;
+            // 画面外に出たら削除
+            if (walls[i].x + wallWidth < 0) {
+                walls.splice(i, 1);
+                score++;
+                scoreEl.innerText = score;
+            }
+        }
+
+        // 一定間隔で新しい壁を生成
+        if (frameCount % 60 === 0) {
+            spawnWall();
+        }
+
+        // 衝突チェック
+        if (checkCollision()) {
+            gameOver();
+        }
+    }
+
+    // 描画処理
     function draw() {
-        if(!gameRunning) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBricks();
-        drawBall();
-        drawPaddle();
-        collisionDetection();
 
-        if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) dx = -dx;
-        if(y + dy < ballRadius) dy = -dy;
-        else if(y + dy > canvas.height-ballRadius) {
-            if(x > paddleX && x < paddleX + paddleWidth) {
-                dy = -dy;
-            } else {
-                alert("ゲームオーバー");
-                document.location.reload();
-                return;
-            }
-        }
+        // 針の描画（グレーの四角形）
+        ctx.fillStyle = "#555";
+        ctx.fillRect(needle.x, needle.y, needle.width, needle.height);
+        // 針の穴っぽく丸を描く
+        ctx.beginPath();
+        ctx.arc(needle.x + 5, needle.y + needle.height/2, 1.5, 0, Math.PI*2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
 
-        x += dx;
-        y += dy;
-        requestAnimationFrame(draw);
+        // 糸（壁）の描画
+        ctx.fillStyle = "#000"; // 昔のゲームっぽく黒
+        walls.forEach(w => {
+            // 上の壁
+            ctx.fillRect(w.x, 0, wallWidth, w.top);
+            // 下の壁
+            ctx.fillRect(w.x, w.top + w.gap, wallWidth, canvas.height - (w.top + w.gap));
+        });
     }
+
+    // ゲームループ
+    function gameLoop() {
+        update();
+        draw();
+        if (gameState !== "over") {
+            requestAnimationFrame(gameLoop);
+        } else {
+            // ゲームオーバー時も最後のフレームを描画し続ける
+            draw();
+        }
+    }
+
+    // 初期生成とループ開始
+    spawnWall();
+    gameLoop();
+
 </script>
 </body>
 </html>
