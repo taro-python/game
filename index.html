@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mortar Plotter G4</title>
+    <title>Mortar Plotter G5</title>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; overflow: hidden; touch-action: none; }
         .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; }
@@ -42,21 +42,20 @@
 </div>
 
 <canvas id="mainCanvas"></canvas>
-
-<div class="bottom-panel" id="historyList"></div>
+<div id="historyList" class="bottom-panel"></div>
 
 <script>
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     
     let plots = [];
-    let scale = 0.1; // ズーム倍率
-    let offset = { x: 0, y: 0 }; // 表示位置
+    let scale = 0.1;
+    let offset = { x: 0, y: 0 };
     
-    // マウス・タッチ操作用変数
     let isDragging = false;
     let lastX, lastY;
-    let initialPinchDist = null;
+    let lastPinchDist = null;
+    let lastPinchMid = null;
 
     const REVERSE_TABLE = { 3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}] };
 
@@ -70,10 +69,9 @@
     }
 
     function render() {
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // リセット
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // --- 背景グリッド (100m) ---
         ctx.strokeStyle = "#222";
         const gStep = 100 * scale;
         for (let x = offset.x % gStep; x < canvas.width; x += gStep) {
@@ -83,52 +81,80 @@
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
         }
 
-        // --- プロット描画 ---
         plots.forEach((p, i) => {
             const rad = p.az * (Math.PI / 3200);
             const px = offset.x + (p.range * Math.sin(rad) * scale);
             const py = offset.y - (p.range * Math.cos(rad) * scale);
-
-            // 散布界
             ctx.save();
             ctx.translate(px, py);
             ctx.rotate(rad);
-            ctx.strokeStyle = (i === plots.length -1) ? "#f1c40f" : "#2ecc71";
+            ctx.strokeStyle = (i === plots.length - 1) ? "#f1c40f" : "#2ecc71";
             ctx.strokeRect(-15*scale, -50*scale, 30*scale, 100*scale);
             ctx.restore();
-
-            // 弾着点
-            ctx.fillStyle = (i === plots.length -1) ? "#f1c40f" : "#e74c3c";
+            ctx.fillStyle = (i === plots.length - 1) ? "#f1c40f" : "#e74c3c";
             ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
         });
 
-        // 陣地
         ctx.fillStyle = "#3498db";
         ctx.beginPath(); ctx.arc(offset.x, offset.y, 6, 0, 7); ctx.fill();
     }
 
-    // --- 操作イベント (PC & スマホ共通) ---
+    // --- タッチ操作ロジック ---
+    function getPinchInfo(touches) {
+        const t1 = touches[0];
+        const t2 = touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const mid = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+        return { dist, mid };
+    }
 
-    // 1. スクロール（PCズーム）
-    canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale *= delta;
-        render();
-    }, { passive: false });
-
-    // 2. ドラッグ・タッチ移動
-    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
     canvas.addEventListener('touchstart', e => {
         if (e.touches.length === 1) {
             isDragging = true;
             lastX = e.touches[0].clientX;
             lastY = e.touches[0].clientY;
         } else if (e.touches.length === 2) {
-            initialPinchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            isDragging = false; // 2本指時は通常のドラッグを停止
+            const info = getPinchInfo(e.touches);
+            lastPinchDist = info.dist;
+            lastPinchMid = info.mid;
         }
     });
 
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            offset.x += e.touches[0].clientX - lastX;
+            offset.y += e.touches[0].clientY - lastY;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            const info = getPinchInfo(e.touches);
+            
+            // 移動の処理 (2本指の中間点の移動)
+            if (lastPinchMid) {
+                offset.x += info.mid.x - lastPinchMid.x;
+                offset.y += info.mid.y - lastPinchMid.y;
+                lastPinchMid = info.mid;
+            }
+            
+            // ズームの処理
+            if (lastPinchDist) {
+                scale *= (info.dist / lastPinchDist);
+                lastPinchDist = info.dist;
+            }
+        }
+        render();
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+        isDragging = false;
+        lastPinchDist = null;
+        lastPinchMid = null;
+    });
+
+    // --- マウス操作 (PC用) ---
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
     window.addEventListener('mousemove', e => {
         if (!isDragging) return;
         offset.x += e.clientX - lastX;
@@ -136,28 +162,15 @@
         lastX = e.clientX; lastY = e.clientY;
         render();
     });
-
-    canvas.addEventListener('touchmove', e => {
-        if (isDragging && e.touches.length === 1) {
-            offset.x += e.touches[0].clientX - lastX;
-            offset.y += e.touches[0].clientY - lastY;
-            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-            render();
-        } else if (e.touches.length === 2) {
-            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            if (initialPinchDist) {
-                scale *= (dist / initialPinchDist);
-                initialPinchDist = dist;
-                render();
-            }
-        }
-    });
-
     window.addEventListener('mouseup', () => isDragging = false);
-    window.addEventListener('touchend', () => { isDragging = false; initialPinchDist = null; });
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        scale *= delta;
+        render();
+    }, { passive: false });
 
-    // --- その他ロジック (追加・保存など) ---
-
+    // --- 既存機能 ---
     function getRange(chg, elv) {
         const table = REVERSE_TABLE[3];
         for(let i=0; i<table.length-1; i++){
@@ -167,7 +180,6 @@
         }
         return 0;
     }
-
     function addPlot() {
         const chg = parseInt(document.getElementById('chg').value);
         const az = parseInt(document.getElementById('az').value);
@@ -178,29 +190,21 @@
         updateHistoryUI();
         render();
     }
-
     function updateHistoryUI() {
         const list = document.getElementById('historyList');
-        list.innerHTML = plots.map((p, i) => `
-            <div class="history-item">
-                <span>[${p.time}] Chg:${p.chg} Az:${p.az}</span>
-                <button class="load-btn" onclick="loadToInput(${i})">呼出</button>
-            </div>
-        `).reverse().join('');
+        list.innerHTML = plots.map((p, i) => `<div class="history-item"><span>[${p.time}] Chg:${p.chg} Az:${p.az}</span><button class="load-btn" onclick="loadToInput(${i})">呼出</button></div>`).reverse().join('');
     }
-
     function loadToInput(i) {
         document.getElementById('chg').value = plots[i].chg;
         document.getElementById('az').value = plots[i].az;
         document.getElementById('elv').value = plots[i].elv;
     }
-
-    function saveToStorage() { localStorage.setItem('mortar_v4', JSON.stringify(plots)); alert("保存完了"); }
-    function loadFromStorage() { const d = localStorage.getItem('mortar_v4'); if(d){ plots = JSON.parse(d); updateHistoryUI(); } }
-    function clearPlots() { if(confirm("消去？")){ plots=[]; localStorage.removeItem('mortar_v4'); render(); updateHistoryUI(); }}
+    function saveToStorage() { localStorage.setItem('mortar_v5', JSON.stringify(plots)); alert("保存完了"); }
+    function loadFromStorage() { const d = localStorage.getItem('mortar_v5'); if(d){ plots = JSON.parse(d); updateHistoryUI(); } }
+    function clearPlots() { if(confirm("消去？")){ plots=[]; localStorage.removeItem('mortar_v5'); render(); updateHistoryUI(); }}
 
     window.onload = init;
-    window.onresize = init;
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); };
 </script>
 </body>
 </html>
