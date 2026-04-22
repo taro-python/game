@@ -3,158 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mortar Impact Visualizer</title>
+    <title>Mortar Tactical Plotter</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; padding: 15px; }
+        body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: auto; }
-        .panel { background: #2d3436; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h3 { margin: 0 0 15px 0; color: #f1c40f; font-size: 1.1em; text-align: center; }
+        .panel { background: #2d3436; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h3 { margin: 0 0 10px 0; color: #f1c40f; font-size: 1em; text-align: center; }
         
         .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        label { display: block; font-size: 0.75em; color: #aaa; margin-bottom: 4px; }
-        input { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #ecf0f1; box-sizing: border-box; font-size: 1em; font-weight: bold; }
+        label { display: block; font-size: 0.7em; color: #aaa; margin-bottom: 3px; }
+        input { width: 100%; padding: 8px; border: none; border-radius: 4px; background: #ecf0f1; font-size: 1em; font-weight: bold; box-sizing: border-box; }
         
-        button { width: 100%; padding: 12px; background: #d35400; color: white; border: none; border-radius: 4px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
+        .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+        button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-calc { background: #d35400; }
+        .btn-save { background: #27ae60; }
+        .btn-clear { background: #c0392b; }
+        button:active { opacity: 0.8; transform: scale(0.98); }
+
+        .canvas-wrapper { position: relative; width: 100%; background: #000; border: 2px solid #444; border-radius: 4px; aspect-ratio: 1 / 1; overflow: hidden; }
+        canvas { width: 100%; height: 100%; }
         
-        /* キャンバス（グリッド）の設定 */
-        .canvas-wrapper { position: relative; width: 100%; background: #000; border: 2px solid #444; border-radius: 4px; overflow: hidden; aspect-ratio: 1 / 1; }
-        canvas { width: 100%; height: 100%; cursor: crosshair; }
-        
-        .legend { display: flex; justify-content: space-around; font-size: 0.8em; margin-top: 8px; color: #bdc3c7; }
-        .info-overlay { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; pointer-events: none; }
+        .history-panel { margin-top: 10px; font-size: 0.8em; max-height: 150px; overflow-y: auto; background: #000; padding: 5px; border-radius: 4px; }
+        .history-item { border-bottom: 1px solid #333; padding: 5px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="panel">
-        <h3>弾着予想入力諸元</h3>
+        <h3>弾着プロット入力</h3>
         <div class="input-row">
-            <div>
-                <label>装薬 (Chg)</label>
-                <input type="number" id="chg" value="3" min="1" max="8">
-            </div>
-            <div>
-                <label>方位 (Az mil)</label>
-                <input type="number" id="az" value="3200">
-            </div>
-            <div>
-                <label>射角 (Elev)</label>
-                <input type="number" id="elv" value="1100">
-            </div>
+            <div><label>装薬</label><input type="number" id="chg" value="3"></div>
+            <div><label>方位(mil)</label><input type="number" id="az" value="3200"></div>
+            <div><label>射角</label><input type="number" id="elv" value="1100"></div>
         </div>
-        <button onclick="drawImpact()">弾着計算・描画</button>
+        <div class="btn-grid">
+            <button class="btn-calc" onclick="addPlot()">プロット追加</button>
+            <button class="btn-save" onclick="saveData()">保存</button>
+            <button class="btn-clear" onclick="clearData()">全消去</button>
+        </div>
     </div>
 
     <div class="canvas-wrapper">
-        <div class="info-overlay" id="overlay">座標: --- , ---</div>
         <canvas id="gridCanvas"></canvas>
     </div>
-    
-    <div class="legend">
-        <span>🟦 陣地 (Gun)</span>
-        <span>🟥 予想弾着 (Impact)</span>
-        <span>🟩 散布界 (長方形)</span>
+
+    <div class="history-panel" id="history">
+        <div style="color:#777; text-align:center;">履歴なし</div>
     </div>
 </div>
 
 <script>
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
-    const overlay = document.getElementById('overlay');
+    let plots = []; // プロットされたデータの配列
 
-    // 射表データ (簡易版：射角elvから距離rangeを逆引き)
-    // 装薬ごとに定義
     const REVERSE_TABLE = {
-        3: [
-            { elv: 1400, range: 600 },
-            { elv: 1300, range: 1300 },
-            { elv: 1200, range: 2100 },
-            { elv: 1100, range: 2800 },
-            { elv: 1000, range: 3500 },
-            { elv: 800,  range: 4500 }
-        ]
-        // 他の装薬も同様に定義可能
+        3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}]
     };
 
-    function initCanvas() {
-        // 解像度合わせ
+    function init() {
         canvas.width = canvas.clientWidth * window.devicePixelRatio;
         canvas.height = canvas.clientHeight * window.devicePixelRatio;
-        drawImpact();
+        loadData(); // 起動時に自動読み込み
+        render();
     }
 
-    function getRangeFromElv(chg, elv) {
-        const table = REVERSE_TABLE[chg] || REVERSE_TABLE[3]; // 指定がなければChg3を参照
-        // 簡易線形補間
-        for(let i=0; i<table.length -1; i++) {
+    function getRange(chg, elv) {
+        const table = REVERSE_TABLE[3]; // サンプルとしてChg3固定
+        for(let i=0; i<table.length-1; i++) {
             if(elv <= table[i].elv && elv >= table[i+1].elv) {
                 const t = (elv - table[i].elv) / (table[i+1].elv - table[i].elv);
-                return table[i].range + t * (table[i+1].range - table[i].range);
+                return table[i].r + t * (table[i+1].r - table[i].r);
             }
         }
-        return table[table.length-1].range; // 範囲外
+        return 0;
     }
 
-    function drawImpact() {
+    function addPlot() {
         const chg = parseInt(document.getElementById('chg').value);
         const az = parseInt(document.getElementById('az').value);
         const elv = parseInt(document.getElementById('elv').value);
+        const range = getRange(chg, elv);
 
-        const range = getRangeFromElv(chg, elv);
-        const azRad = (az * (Math.PI / 3200)); // ミルからラジアンへ
+        if(range === 0) { alert("射表範囲外です"); return; }
 
-        // 座標計算 (陣地をキャンバス中央下部とする)
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height * 0.85;
-        const scale = 0.08; // 1mあたりのピクセル
-
-        const impactX = centerX + (range * Math.sin(azRad) * scale);
-        const impactY = centerY - (range * Math.cos(azRad) * scale);
-
-        // クリア
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 1. マス目（100mグリッド）の描画
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 1;
-        for(let i=0; i<canvas.width; i += 100 * scale) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-        }
-
-        // 2. 散布界（縦長の長方形）の描画
-        // 81mmの特性として、距離誤差を±50m、方向誤差を±15mと仮定
-        const rectW = 30 * scale; 
-        const rectH = 100 * scale;
-
-        ctx.save();
-        ctx.translate(impactX, impactY);
-        ctx.rotate(azRad); // 射線方向に合わせる
-        ctx.strokeStyle = "#2ecc71";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-rectW/2, -rectH/2, rectW, rectH);
-        ctx.fillStyle = "rgba(46, 204, 113, 0.2)";
-        ctx.fillRect(-rectW/2, -rectH/2, rectW, rectH);
-        ctx.restore();
-
-        // 3. 陣地プロット
-        ctx.fillStyle = "#3498db";
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 8, 0, Math.PI*2);
-        ctx.fill();
-
-        // 4. 弾着点プロット
-        ctx.fillStyle = "#e74c3c";
-        ctx.beginPath();
-        ctx.arc(impactX, impactY, 5, 0, Math.PI*2);
-        ctx.fill();
-
-        overlay.innerText = `弾着予想: 距離 ${Math.round(range)}m / 方向 ${az}mil`;
+        plots.push({ chg, az, elv, range, id: Date.now() });
+        updateHistory();
+        render();
     }
 
-    window.onload = initCanvas;
-</script>
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height * 0.9;
+        const scale = 0.08;
 
+        // グリッド描画
+        ctx.strokeStyle = "#222";
+        for(let i=0; i<canvas.width; i+=100*scale) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke();
+        }
+
+        // 全プロット描画
+        plots.forEach((p, index) => {
+            const azRad = (p.az * (Math.PI / 3200));
+            const x = centerX + (p.range * Math.sin(azRad) * scale);
+            const y = centerY - (p.range * Math.cos(azRad) * scale);
+            
+            // 散布界 (長方形)
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(azRad);
+            ctx.strokeStyle = (index === plots.length - 1) ? "#f1c40f" : "#2ecc71"; // 最新は黄色
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-15*scale, -50*scale, 30*scale, 100*scale);
+            ctx.fillStyle = "rgba(46, 204, 113, 0.1)";
+            ctx.fillRect(-15*scale, -50*scale, 30*scale, 100*scale);
+            ctx.restore();
+
+            // 点
+            ctx.fillStyle = (index === plots.length - 1) ? "#f1c40f" : "#e74c3c";
+            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+        });
+
+        // 陣地
+        ctx.fillStyle = "#3498db";
+        ctx.beginPath(); ctx.arc(centerX, centerY, 6, 0, Math.PI*2); ctx.fill();
+    }
+
+    function updateHistory() {
+        const histDiv = document.getElementById('history');
+        histDiv.innerHTML = plots.map(p => `
+            <div class="history-item">
+                <span>Az: ${p.az} / Elv: ${p.elv}</span>
+                <span style="color:#f1c40f">${Math.round(p.range)}m</span>
+            </div>
+        `).reverse().join('');
+    }
+
+    // 保存機能 (Local Storage)
+    function saveData() {
+        localStorage.setItem('mortar_plots', JSON.stringify(plots));
+        alert("ブラウザに現在のデータを保存しました。");
+    }
+
+    // 読み込み機能
+    function loadData() {
+        const saved = localStorage.getItem('mortar_plots');
+        if(saved) {
+            plots = JSON.parse(saved);
+            updateHistory();
+            render();
+        }
+    }
+
+    // 消去機能
+    function clearData() {
+        if(confirm("全てのプロットを消去しますか？")) {
+            plots = [];
+            localStorage.removeItem('mortar_plots');
+            updateHistory();
+            render();
+        }
+    }
+
+    window.onload = init;
+</script>
 </body>
 </html>
