@@ -3,106 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>81mm Mortar Calc</title>
+    <title>81mm Mortar Calc Pro</title>
     <style>
-        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 15px; }
-        .container { max-width: 500px; margin: auto; background: #34495e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        h2 { text-align: center; color: #f1c40f; margin-top: 0; }
-        .section { margin-bottom: 15px; border-bottom: 1px solid #5d6d7e; padding-bottom: 10px; }
-        label { display: block; font-size: 0.9em; margin-bottom: 5px; color: #bdc3c7; }
+        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 15px; margin: 0; }
+        .container { max-width: 500px; margin: 20px auto; background: #34495e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #f1c40f; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+        .section { margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; }
+        label { display: block; font-size: 0.85em; margin-bottom: 5px; color: #bdc3c7; font-weight: bold; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input { width: 100%; padding: 10px; border: none; border-radius: 5px; background: #ecf0f1; font-size: 1em; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 5px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:active { background: #d35400; }
-        .result-box { margin-top: 20px; padding: 15px; background: #1e272e; border-radius: 5px; border-left: 5px solid #f1c40f; }
-        .result-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 1.1em; }
-        .val { font-weight: bold; color: #f1c40f; }
+        input { width: 100%; padding: 12px; border: 1px solid #2c3e50; border-radius: 5px; background: #ecf0f1; font-size: 1em; box-sizing: border-box; color: #2c3e50; }
+        button { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        button:active { background: #2ecc71; transform: scale(0.98); }
+        
+        .result-box { margin-top: 20px; padding: 15px; background: #1e272e; border-radius: 5px; border-top: 4px solid #f1c40f; }
+        .firing-data { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .data-card { background: #2d3436; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #444; }
+        .data-label { font-size: 0.75em; color: #aaa; margin-bottom: 5px; }
+        .data-val { font-size: 1.4em; font-weight: bold; color: #f1c40f; }
+        .highlight { color: #e67e22; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>諸元算定モジュール</h2>
+    <h2>Mortar Solver v2</h2>
 
     <div class="section">
-        <label>① 陣地座標 (Gun Pos)</label>
+        <label>陣地 (Gun) MGRS/XY</label>
         <div class="grid">
-            <input type="number" id="gx" placeholder="X (East)">
-            <input type="number" id="gy" placeholder="Y (North)">
+            <input type="number" id="gx" placeholder="X">
+            <input type="number" id="gy" placeholder="Y">
         </div>
     </div>
 
     <div class="section">
-        <label>② 観測所座標 (OP Pos)</label>
+        <label>目標 (Target) MGRS/XY</label>
         <div class="grid">
-            <input type="number" id="ox" placeholder="X (East)">
-            <input type="number" id="oy" placeholder="Y (North)">
+            <input type="number" id="tx" placeholder="X">
+            <input type="number" id="ty" placeholder="Y">
         </div>
     </div>
 
     <div class="section">
-        <label>③ 目標座標 (Target Pos)</label>
+        <label>観測所 (OP) ※任意</label>
         <div class="grid">
-            <input type="number" id="tx" placeholder="X (East)">
-            <input type="number" id="ty" placeholder="Y (North)">
+            <input type="number" id="ox" placeholder="X">
+            <input type="number" id="oy" placeholder="Y">
         </div>
     </div>
 
     <button onclick="calculate()">算定実行</button>
 
-    <div class="result-box" id="results">
-        <div class="result-item">射距離: <span class="val" id="r_dist">-</span> m</div>
-        <div class="result-item">射向 (ミル): <span class="val" id="r_az">-</span> mil</div>
-        <div class="result-item">観測角 (ミル): <span class="val" id="r_op_az">-</span> mil</div>
-        <div class="result-item">OT距離: <span class="val" id="r_ot_dist">-</span> m</div>
+    <div id="output" style="display:none;">
+        <div class="result-box">
+            <div class="data-label">射距離 (Range)</div>
+            <div class="data-val" id="r_dist" style="font-size: 2em;">-</div>
+            
+            <div class="firing-data">
+                <div class="data-card">
+                    <div class="data-label">装薬 (Charge)</div>
+                    <div class="data-val highlight" id="r_chg">-</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">射角 (Elev)</div>
+                    <div class="data-val highlight" id="r_elv">-</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">射向 (Azimuth)</div>
+                    <div class="data-val" id="r_az">-</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">観測角 (OT)</div>
+                    <div class="data-val" id="r_op_az">-</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+    // 簡易射表データ (距離: {chg: 装薬, elv: 射角})
+    // 実際の射表に基づいてここを書き換えてください
+    const FIRING_TABLE = [
+        { range: 500,  chg: 1, elv: 1420 },
+        { range: 1000, chg: 1, elv: 1150 },
+        { range: 1500, chg: 2, elv: 1300 },
+        { range: 2000, chg: 2, elv: 1100 },
+        { range: 2500, chg: 3, elv: 1250 },
+        { range: 3000, chg: 3, elv: 1050 },
+        { range: 4000, chg: 4, elv: 1100 },
+        { range: 5000, chg: 6, elv: 1150 }
+    ];
+
+    function getFiringSolution(range) {
+        // 射表から最も近い距離を探す（線形補完等はせず近似値を選択）
+        let bestMatch = FIRING_TABLE[0];
+        let minDiff = Math.abs(range - FIRING_TABLE[0].range);
+
+        for (let entry of FIRING_TABLE) {
+            let diff = Math.abs(range - entry.range);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestMatch = entry;
+            }
+        }
+        
+        // 射程外チェック
+        if (range > 6000) return { chg: "RANGE", elv: "OUT" };
+        return bestMatch;
+    }
+
     function toMil(rad) {
-        // ラジアンをミル(6400)に変換
         let mil = rad * (3200 / Math.PI);
         if (mil < 0) mil += 6400;
         return Math.round(mil);
     }
 
     function calculate() {
-        // 入力値取得
         const gx = parseFloat(document.getElementById('gx').value);
         const gy = parseFloat(document.getElementById('gy').value);
-        const ox = parseFloat(document.getElementById('ox').value);
-        const oy = parseFloat(document.getElementById('oy').value);
         const tx = parseFloat(document.getElementById('tx').value);
         const ty = parseFloat(document.getElementById('ty').value);
+        const ox = parseFloat(document.getElementById('ox').value);
+        const oy = parseFloat(document.getElementById('oy').value);
 
         if (isNaN(gx) || isNaN(gy) || isNaN(tx) || isNaN(ty)) {
             alert("陣地と目標の座標を入力してください");
             return;
         }
 
-        // 1. 陣地から目標への計算
+        // 1. 射距離計算
         const dx = tx - gx;
         const dy = ty - gy;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        const azRad = Math.atan2(dx, dy); // 北基準(Y軸)の角度
-        const azMil = toMil(azRad);
 
-        // 2. 観測所から目標への計算 (OT計算)
-        let opAzMil = "-";
-        let otDist = "-";
+        // 2. 方位角(Azimuth)計算
+        const azMil = toMil(Math.atan2(dx, dy));
+
+        // 3. 射表から装薬・射角を取得
+        const sol = getFiringSolution(dist);
+
+        // 4. OT計算
+        let opAz = "-";
         if (!isNaN(ox) && !isNaN(oy)) {
-            const odx = tx - ox;
-            const ody = ty - oy;
-            otDist = Math.sqrt(odx*odx + ody*ody).toFixed(0);
-            const opAzRad = Math.atan2(odx, ody);
-            opAzMil = toMil(opAzRad);
+            opAz = toMil(Math.atan2(tx - ox, ty - oy));
         }
 
-        // 結果表示
-        document.getElementById('r_dist').innerText = dist.toFixed(0);
+        // 表示処理
+        document.getElementById('output').style.display = 'block';
+        document.getElementById('r_dist').innerText = Math.round(dist) + " m";
+        document.getElementById('r_chg').innerText = sol.chg;
+        document.getElementById('r_elv').innerText = sol.elv;
         document.getElementById('r_az').innerText = azMil;
-        document.getElementById('r_op_az').innerText = opAzMil;
-        document.getElementById('r_ot_dist').innerText = otDist;
+        document.getElementById('r_op_az').innerText = opAz;
     }
 </script>
 
