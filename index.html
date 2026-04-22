@@ -3,30 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mortar Plotter G3</title>
+    <title>Mortar Plotter G4</title>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; overflow: hidden; touch-action: none; }
         .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; }
         .panel { background: rgba(45, 52, 54, 0.9); padding: 12px; border-radius: 8px; pointer-events: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 8px; }
-        
         .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         label { display: block; font-size: 0.7em; color: #aaa; }
         input { width: 100%; padding: 8px; border-radius: 4px; border: none; background: #ecf0f1; font-weight: bold; box-sizing: border-box; }
-        
         .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
         button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
         .btn-add { background: #d35400; }
         .btn-save { background: #27ae60; }
         .btn-clear { background: #c0392b; }
 
-        canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; cursor: grab; }
-        canvas:active { cursor: grabbing; }
+        canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background: #111; }
 
-        .bottom-panel { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; pointer-events: auto; max-height: 30vh; overflow-y: auto; background: rgba(0,0,0,0.7); border-radius: 8px; font-size: 0.8em; }
+        .bottom-panel { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; pointer-events: auto; max-height: 25vh; overflow-y: auto; background: rgba(0,0,0,0.8); border-radius: 8px; font-size: 0.8em; }
         .history-item { border-bottom: 1px solid #333; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .load-btn { background: #3498db; padding: 4px 8px; border-radius: 4px; border: none; color: white; font-size: 0.8em; }
-        
-        .zoom-info { position: absolute; bottom: 10px; right: 10px; font-size: 0.7em; color: #777; pointer-events: none; }
+        .load-btn { background: #3498db; padding: 4px 8px; border-radius: 4px; border: none; color: white; }
     </style>
 </head>
 <body>
@@ -39,30 +34,29 @@
             <div><label>射角</label><input type="number" id="elv" value="1100"></div>
         </div>
         <div class="btn-grid">
-            <button class="btn-add" onclick="addPlot()">追加プロット</button>
-            <button class="btn-save" onclick="saveToStorage()">一括保存</button>
-            <button class="btn-clear" onclick="clearPlots()">リセット</button>
+            <button class="btn-add" onclick="addPlot()">追加</button>
+            <button class="btn-save" onclick="saveToStorage()">保存</button>
+            <button class="btn-clear" onclick="clearPlots()">消去</button>
         </div>
     </div>
 </div>
 
 <canvas id="mainCanvas"></canvas>
-<div class="zoom-info">ドラッグ:移動 / スクロール:拡大縮小</div>
 
-<div class="bottom-panel" id="historyList">
-    <div style="padding:10px; color:#777; text-align:center;">履歴データ</div>
-</div>
+<div class="bottom-panel" id="historyList"></div>
 
 <script>
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     
-    // 表示状態
     let plots = [];
-    let scale = 0.1;
-    let offset = { x: 0, y: 0 };
+    let scale = 0.1; // ズーム倍率
+    let offset = { x: 0, y: 0 }; // 表示位置
+    
+    // マウス・タッチ操作用変数
     let isDragging = false;
-    let lastMouse = { x: 0, y: 0 };
+    let lastX, lastY;
+    let initialPinchDist = null;
 
     const REVERSE_TABLE = { 3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}] };
 
@@ -75,13 +69,100 @@
         render();
     }
 
-    // 距離逆引き
+    function render() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // リセット
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // --- 背景グリッド (100m) ---
+        ctx.strokeStyle = "#222";
+        const gStep = 100 * scale;
+        for (let x = offset.x % gStep; x < canvas.width; x += gStep) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = offset.y % gStep; y < canvas.height; y += gStep) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+
+        // --- プロット描画 ---
+        plots.forEach((p, i) => {
+            const rad = p.az * (Math.PI / 3200);
+            const px = offset.x + (p.range * Math.sin(rad) * scale);
+            const py = offset.y - (p.range * Math.cos(rad) * scale);
+
+            // 散布界
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(rad);
+            ctx.strokeStyle = (i === plots.length -1) ? "#f1c40f" : "#2ecc71";
+            ctx.strokeRect(-15*scale, -50*scale, 30*scale, 100*scale);
+            ctx.restore();
+
+            // 弾着点
+            ctx.fillStyle = (i === plots.length -1) ? "#f1c40f" : "#e74c3c";
+            ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
+        });
+
+        // 陣地
+        ctx.fillStyle = "#3498db";
+        ctx.beginPath(); ctx.arc(offset.x, offset.y, 6, 0, 7); ctx.fill();
+    }
+
+    // --- 操作イベント (PC & スマホ共通) ---
+
+    // 1. スクロール（PCズーム）
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        scale *= delta;
+        render();
+    }, { passive: false });
+
+    // 2. ドラッグ・タッチ移動
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+    canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            initialPinchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+        }
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        offset.x += e.clientX - lastX;
+        offset.y += e.clientY - lastY;
+        lastX = e.clientX; lastY = e.clientY;
+        render();
+    });
+
+    canvas.addEventListener('touchmove', e => {
+        if (isDragging && e.touches.length === 1) {
+            offset.x += e.touches[0].clientX - lastX;
+            offset.y += e.touches[0].clientY - lastY;
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            render();
+        } else if (e.touches.length === 2) {
+            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            if (initialPinchDist) {
+                scale *= (dist / initialPinchDist);
+                initialPinchDist = dist;
+                render();
+            }
+        }
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('touchend', () => { isDragging = false; initialPinchDist = null; });
+
+    // --- その他ロジック (追加・保存など) ---
+
     function getRange(chg, elv) {
         const table = REVERSE_TABLE[3];
         for(let i=0; i<table.length-1; i++){
             if(elv <= table[i].elv && elv >= table[i+1].elv){
-                const t = (elv - table[i].elv) / (table[i+1].elv - table[i+1].elv || 1);
-                return table[i].r + (table[i+1].r - table[i].r) * ( (elv - table[i].elv) / (table[i+1].elv - table[i].elv) );
+                return table[i].r + (table[i+1].r - table[i].r) * ((elv - table[i].elv) / (table[i+1].elv - table[i].elv));
             }
         }
         return 0;
@@ -92,106 +173,34 @@
         const az = parseInt(document.getElementById('az').value);
         const elv = parseInt(document.getElementById('elv').value);
         const range = getRange(chg, elv);
-        if(range <= 0) return alert("射表外です");
-        
+        if(range <= 0) return alert("射表外");
         plots.push({ chg, az, elv, range, time: new Date().toLocaleTimeString() });
         updateHistoryUI();
         render();
     }
 
-    function render() {
-        ctx.fillStyle = "#1a1a1a";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // グリッド描画 (100m)
-        ctx.strokeStyle = "#252525";
-        ctx.lineWidth = 1;
-        const gridStep = 100 * scale;
-        for(let x = offset.x % gridStep; x < canvas.width; x += gridStep) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-        }
-        for(let y = offset.y % gridStep; y < canvas.height; y += gridStep) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-        }
-
-        // プロット描画
-        plots.forEach((p, index) => {
-            const azRad = (p.az * (Math.PI / 3200));
-            const px = offset.x + (p.range * Math.sin(azRad) * scale);
-            const py = offset.y - (p.range * Math.cos(azRad) * scale);
-
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(azRad);
-            ctx.strokeStyle = (index === plots.length - 1) ? "#f1c40f" : "#2ecc71";
-            ctx.strokeRect(-15 * scale, -50 * scale, 30 * scale, 100 * scale);
-            ctx.restore();
-
-            ctx.fillStyle = (index === plots.length - 1) ? "#f1c40f" : "#e74c3c";
-            ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
-        });
-
-        // 陣地
-        ctx.fillStyle = "#3498db";
-        ctx.beginPath(); ctx.arc(offset.x, offset.y, 6, 0, Math.PI*2); ctx.fill();
-    }
-
-    // --- インタラクション ---
-    canvas.onmousedown = (e) => { isDragging = true; lastMouse = { x: e.clientX, y: e.clientY }; };
-    window.onmouseup = () => isDragging = false;
-    window.onmousemove = (e) => {
-        if(!isDragging) return;
-        offset.x += (e.clientX - lastMouse.x);
-        offset.y += (e.clientY - lastMouse.y);
-        lastMouse = { x: e.clientX, y: e.clientY };
-        render();
-    };
-    canvas.onwheel = (e) => {
-        const zoomSpeed = 1.1;
-        const factor = e.deltaY > 0 ? 1/zoomSpeed : zoomSpeed;
-        scale *= factor;
-        render();
-    };
-
-    // --- データ管理 ---
     function updateHistoryUI() {
         const list = document.getElementById('historyList');
         list.innerHTML = plots.map((p, i) => `
             <div class="history-item">
-                <span>[${p.time}] Chg:${p.chg} Az:${p.az} Elv:${p.elv}</span>
+                <span>[${p.time}] Chg:${p.chg} Az:${p.az}</span>
                 <button class="load-btn" onclick="loadToInput(${i})">呼出</button>
             </div>
         `).reverse().join('');
     }
 
     function loadToInput(i) {
-        const p = plots[i];
-        document.getElementById('chg').value = p.chg;
-        document.getElementById('az').value = p.az;
-        document.getElementById('elv').value = p.elv;
+        document.getElementById('chg').value = plots[i].chg;
+        document.getElementById('az').value = plots[i].az;
+        document.getElementById('elv').value = plots[i].elv;
     }
 
-    function saveToStorage() {
-        localStorage.setItem('mortar_data_v3', JSON.stringify(plots));
-        alert("現在の全プロットを保存しました");
-    }
+    function saveToStorage() { localStorage.setItem('mortar_v4', JSON.stringify(plots)); alert("保存完了"); }
+    function loadFromStorage() { const d = localStorage.getItem('mortar_v4'); if(d){ plots = JSON.parse(d); updateHistoryUI(); } }
+    function clearPlots() { if(confirm("消去？")){ plots=[]; localStorage.removeItem('mortar_v4'); render(); updateHistoryUI(); }}
 
-    function loadFromStorage() {
-        const data = localStorage.getItem('mortar_data_v3');
-        if(data) { plots = JSON.parse(data); updateHistoryUI(); }
-    }
-
-    function clearPlots() {
-        if(confirm("全消去しますか？")) {
-            plots = [];
-            localStorage.removeItem('mortar_data_v3');
-            render();
-            updateHistoryUI();
-        }
-    }
-
-    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); };
     window.onload = init;
+    window.onresize = init;
 </script>
 </body>
 </html>
