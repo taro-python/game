@@ -3,40 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mortar Plotter G5</title>
+    <title>Mortar Plotter G6 - Setup</title>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; overflow: hidden; touch-action: none; }
-        .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; }
-        .panel { background: rgba(45, 52, 54, 0.9); padding: 12px; border-radius: 8px; pointer-events: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 8px; }
-        .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        label { display: block; font-size: 0.7em; color: #aaa; }
-        input { width: 100%; padding: 8px; border-radius: 4px; border: none; background: #ecf0f1; font-weight: bold; box-sizing: border-box; }
-        .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+        
+        /* 登録画面のスタイル */
+        #setup-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2d3436; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; overflow-y: auto; padding: 20px; box-sizing: border-box;
+        }
+        .setup-card { background: #34495e; padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .setup-card h2 { color: #f1c40f; text-align: center; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.8em; margin-bottom: 5px; color: #bdc3c7; }
+        .input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input { width: 100%; padding: 10px; border-radius: 4px; border: none; background: #ecf0f1; box-sizing: border-box; font-weight: bold; }
+        
+        .btn-start { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* メイン画面のスタイル（既存） */
+        .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; display: none; }
+        .panel { background: rgba(45, 52, 54, 0.9); padding: 12px; border-radius: 8px; pointer-events: auto; }
+        .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-top: 8px; }
         button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-add { background: #d35400; }
-        .btn-save { background: #27ae60; }
-        .btn-clear { background: #c0392b; }
-
         canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background: #111; }
-
-        .bottom-panel { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; pointer-events: auto; max-height: 25vh; overflow-y: auto; background: rgba(0,0,0,0.8); border-radius: 8px; font-size: 0.8em; }
-        .history-item { border-bottom: 1px solid #333; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .load-btn { background: #3498db; padding: 4px 8px; border-radius: 4px; border: none; color: white; }
+        .bottom-panel { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; pointer-events: auto; max-height: 20vh; overflow-y: auto; background: rgba(0,0,0,0.8); border-radius: 8px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="ui-panel">
+<div id="setup-screen">
+    <div class="setup-card">
+        <h2>初期座標登録</h2>
+        <div class="input-group">
+            <label>陣地1 (必須)</label>
+            <div class="input-pair"><input type="number" id="init_g1x" placeholder="X"> <input type="number" id="init_g1y" placeholder="Y"></div>
+        </div>
+        <div class="input-group">
+            <label>陣地2 (任意)</label>
+            <div class="input-pair"><input type="number" id="init_g2x" placeholder="X"> <input type="number" id="init_g2y" placeholder="Y"></div>
+        </div>
+        <div class="input-group">
+            <label>観測所 (OP)</label>
+            <div class="input-pair"><input type="number" id="init_ox" placeholder="X"> <input type="number" id="init_oy" placeholder="Y"></div>
+        </div>
+        <div class="input-group">
+            <label>目標 (Target)</label>
+            <div class="input-pair"><input type="number" id="init_tx" placeholder="X"> <input type="number" id="init_ty" placeholder="Y"></div>
+        </div>
+        <button class="btn-start" onclick="startApp()">登録して開始</button>
+    </div>
+</div>
+
+<div class="ui-panel" id="main-ui">
     <div class="panel">
-        <div class="input-row">
-            <div><label>装薬</label><input type="number" id="chg" value="3"></div>
-            <div><label>方位(mil)</label><input type="number" id="az" value="3200"></div>
-            <div><label>射角</label><input type="number" id="elv" value="1100"></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div><label style="font-size:0.7em">装薬</label><input type="number" id="chg" value="3"></div>
+            <div><label style="font-size:0.7em">方位(mil)</label><input type="number" id="az" value="3200"></div>
+            <div><label style="font-size:0.7em">射角</label><input type="number" id="elv" value="1100"></div>
         </div>
         <div class="btn-grid">
-            <button class="btn-add" onclick="addPlot()">追加</button>
-            <button class="btn-save" onclick="saveToStorage()">保存</button>
-            <button class="btn-clear" onclick="clearPlots()">消去</button>
+            <button style="background:#d35400" onclick="addPlot()">追加</button>
+            <button style="background:#27ae60" onclick="saveToStorage()">保存</button>
+            <button style="background:#c0392b" onclick="location.reload()">リセット</button>
         </div>
     </div>
 </div>
@@ -49,22 +79,46 @@
     const ctx = canvas.getContext('2d');
     
     let plots = [];
+    let basePoints = { guns: [], op: null, target: null };
     let scale = 0.1;
     let offset = { x: 0, y: 0 };
     
     let isDragging = false;
-    let lastX, lastY;
-    let lastPinchDist = null;
-    let lastPinchMid = null;
+    let lastX, lastY, lastPinchDist = null, lastPinchMid = null;
 
     const REVERSE_TABLE = { 3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}] };
 
-    function init() {
+    function startApp() {
+        // 値の取得
+        const g1x = parseFloat(document.getElementById('init_g1x').value);
+        const g1y = parseFloat(document.getElementById('init_g1y').value);
+        if(isNaN(g1x) || isNaN(g1y)) return alert("陣地1は必須です");
+
+        basePoints.guns.push({x: g1x, y: g1y});
+        
+        const g2x = parseFloat(document.getElementById('init_g2x').value);
+        const g2y = parseFloat(document.getElementById('init_g2y').value);
+        if(!isNaN(g2x)) basePoints.guns.push({x: g2x, y: g2y});
+
+        const ox = parseFloat(document.getElementById('init_ox').value);
+        const oy = parseFloat(document.getElementById('init_oy').value);
+        if(!isNaN(ox)) basePoints.op = {x: ox, y: oy};
+
+        const tx = parseFloat(document.getElementById('init_tx').value);
+        const ty = parseFloat(document.getElementById('init_ty').value);
+        if(!isNaN(tx)) basePoints.target = {x: tx, y: ty};
+
+        // 画面切り替え
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('main-ui').style.display = 'block';
+        document.getElementById('historyList').style.display = 'block';
+
+        // 初期表示位置を陣地1に合わせる
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         offset.x = canvas.width / 2;
-        offset.y = canvas.height * 0.8;
-        loadFromStorage();
+        offset.y = canvas.height / 2;
+        
         render();
     }
 
@@ -72,138 +126,90 @@
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
+        // 100mグリッド (座標0,0を基準)
         ctx.strokeStyle = "#222";
         const gStep = 100 * scale;
-        for (let x = offset.x % gStep; x < canvas.width; x += gStep) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-        }
-        for (let y = offset.y % gStep; y < canvas.height; y += gStep) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        for (let x = offset.x % gStep; x < canvas.width; x += gStep) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+        for (let y = offset.y % gStep; y < canvas.height; y += gStep) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+
+        const toPX = (px, py) => ({
+            x: offset.x + (px - basePoints.guns[0].x) * scale,
+            y: offset.y - (py - basePoints.guns[0].y) * scale
+        });
+
+        // 陣地の描画 (青)
+        basePoints.guns.forEach(g => {
+            const p = toPX(g.x, g.y);
+            ctx.fillStyle = "#3498db";
+            ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 7); ctx.fill();
+        });
+
+        // 観測所の描画 (緑)
+        if(basePoints.op) {
+            const p = toPX(basePoints.op.x, basePoints.op.y);
+            ctx.fillStyle = "#2ecc71";
+            ctx.beginPath(); ctx.moveTo(p.x, p.y-10); ctx.lineTo(p.x+10, p.y+10); ctx.lineTo(p.x-10, p.y+10); ctx.closePath(); ctx.fill();
         }
 
-        plots.forEach((p, i) => {
-            const rad = p.az * (Math.PI / 3200);
-            const px = offset.x + (p.range * Math.sin(rad) * scale);
-            const py = offset.y - (p.range * Math.cos(rad) * scale);
+        // 目標の描画 (白×)
+        if(basePoints.target) {
+            const p = toPX(basePoints.target.x, basePoints.target.y);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(p.x-8, p.y-8); ctx.lineTo(p.x+8, p.y+8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p.x+8, p.y-8); ctx.lineTo(p.x-8, p.y+8); ctx.stroke();
+        }
+
+        // 弾着プロットの描画
+        plots.forEach((pl, i) => {
+            const rad = pl.az * (Math.PI / 3200);
+            const gx = basePoints.guns[0].x + pl.range * Math.sin(rad);
+            const gy = basePoints.guns[0].y + pl.range * Math.cos(rad);
+            const p = toPX(gx, gy);
+
             ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(rad);
-            ctx.strokeStyle = (i === plots.length - 1) ? "#f1c40f" : "#2ecc71";
+            ctx.translate(p.x, p.y); ctx.rotate(rad);
+            ctx.strokeStyle = (i === plots.length - 1) ? "#f1c40f" : "#e67e22";
             ctx.strokeRect(-15*scale, -50*scale, 30*scale, 100*scale);
             ctx.restore();
             ctx.fillStyle = (i === plots.length - 1) ? "#f1c40f" : "#e74c3c";
-            ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill();
         });
-
-        ctx.fillStyle = "#3498db";
-        ctx.beginPath(); ctx.arc(offset.x, offset.y, 6, 0, 7); ctx.fill();
     }
 
-    // --- タッチ操作ロジック ---
-    function getPinchInfo(touches) {
-        const t1 = touches[0];
-        const t2 = touches[1];
-        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-        const mid = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
-        return { dist, mid };
-    }
-
+    // --- インタラクション (G5から継承・最適化) ---
+    function getPinch(t) { return { d: Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), m: {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2} }; }
     canvas.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-            isDragging = true;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
-        } else if (e.touches.length === 2) {
-            isDragging = false; // 2本指時は通常のドラッグを停止
-            const info = getPinchInfo(e.touches);
-            lastPinchDist = info.dist;
-            lastPinchMid = info.mid;
-        }
+        if(e.touches.length==1){ isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+        else if(e.touches.length==2){ isDragging=false; const p=getPinch(e.touches); lastPinchDist=p.d; lastPinchMid=p.m; }
     });
-
     canvas.addEventListener('touchmove', e => {
         e.preventDefault();
-        if (e.touches.length === 1 && isDragging) {
-            offset.x += e.touches[0].clientX - lastX;
-            offset.y += e.touches[0].clientY - lastY;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
-        } else if (e.touches.length === 2) {
-            const info = getPinchInfo(e.touches);
-            
-            // 移動の処理 (2本指の中間点の移動)
-            if (lastPinchMid) {
-                offset.x += info.mid.x - lastPinchMid.x;
-                offset.y += info.mid.y - lastPinchMid.y;
-                lastPinchMid = info.mid;
-            }
-            
-            // ズームの処理
-            if (lastPinchDist) {
-                scale *= (info.dist / lastPinchDist);
-                lastPinchDist = info.dist;
-            }
-        }
+        if(e.touches.length==1 && isDragging){ offset.x+=e.touches[0].clientX-lastX; offset.y+=e.touches[0].clientY-lastY; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+        else if(e.touches.length==2){ const p=getPinch(e.touches); if(lastPinchMid){ offset.x+=p.m.x-lastPinchMid.x; offset.y+=p.m.y-lastPinchMid.y; lastPinchMid=p.m; } if(lastPinchDist){ scale*=(p.d/lastPinchDist); lastPinchDist=p.d; } }
         render();
-    }, { passive: false });
+    }, {passive:false});
+    window.addEventListener('touchend', ()=>{ isDragging=false; lastPinchDist=null; lastPinchMid=null; });
+    
+    // マウス操作も維持
+    canvas.addEventListener('mousedown', e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
+    window.addEventListener('mousemove', e => { if(isDragging){ offset.x+=e.clientX-lastX; offset.y+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; render(); }});
+    window.addEventListener('mouseup', ()=>isDragging=false);
+    canvas.addEventListener('wheel', e => { e.preventDefault(); scale *= (e.deltaY>0?0.9:1.1); render(); }, {passive:false});
 
-    window.addEventListener('touchend', () => {
-        isDragging = false;
-        lastPinchDist = null;
-        lastPinchMid = null;
-    });
-
-    // --- マウス操作 (PC用) ---
-    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
-    window.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        offset.x += e.clientX - lastX;
-        offset.y += e.clientY - lastY;
-        lastX = e.clientX; lastY = e.clientY;
-        render();
-    });
-    window.addEventListener('mouseup', () => isDragging = false);
-    canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale *= delta;
-        render();
-    }, { passive: false });
-
-    // --- 既存機能 ---
+    // 既存ロジック
     function getRange(chg, elv) {
         const table = REVERSE_TABLE[3];
         for(let i=0; i<table.length-1; i++){
-            if(elv <= table[i].elv && elv >= table[i+1].elv){
-                return table[i].r + (table[i+1].r - table[i].r) * ((elv - table[i].elv) / (table[i+1].elv - table[i].elv));
-            }
+            if(elv <= table[i].elv && elv >= table[i+1].elv) return table[i].r + (table[i+1].r - table[i].r) * ((elv - table[i].elv) / (table[i+1].elv - table[i].elv));
         }
         return 0;
     }
     function addPlot() {
-        const chg = parseInt(document.getElementById('chg').value);
-        const az = parseInt(document.getElementById('az').value);
-        const elv = parseInt(document.getElementById('elv').value);
-        const range = getRange(chg, elv);
-        if(range <= 0) return alert("射表外");
-        plots.push({ chg, az, elv, range, time: new Date().toLocaleTimeString() });
-        updateHistoryUI();
+        const r = getRange(parseInt(document.getElementById('chg').value), parseInt(document.getElementById('elv').value));
+        if(r<=0) return alert("射程外");
+        plots.push({ az: parseInt(document.getElementById('az').value), range: r, time: new Date().toLocaleTimeString() });
         render();
     }
-    function updateHistoryUI() {
-        const list = document.getElementById('historyList');
-        list.innerHTML = plots.map((p, i) => `<div class="history-item"><span>[${p.time}] Chg:${p.chg} Az:${p.az}</span><button class="load-btn" onclick="loadToInput(${i})">呼出</button></div>`).reverse().join('');
-    }
-    function loadToInput(i) {
-        document.getElementById('chg').value = plots[i].chg;
-        document.getElementById('az').value = plots[i].az;
-        document.getElementById('elv').value = plots[i].elv;
-    }
-    function saveToStorage() { localStorage.setItem('mortar_v5', JSON.stringify(plots)); alert("保存完了"); }
-    function loadFromStorage() { const d = localStorage.getItem('mortar_v5'); if(d){ plots = JSON.parse(d); updateHistoryUI(); } }
-    function clearPlots() { if(confirm("消去？")){ plots=[]; localStorage.removeItem('mortar_v5'); render(); updateHistoryUI(); }}
-
-    window.onload = init;
     window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); };
 </script>
 </body>
