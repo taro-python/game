@@ -2,242 +2,109 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Retro Thread the Needle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>81mm Mortar Calc</title>
     <style>
-        body { margin: 0; background: #99eeff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
-        canvas { background: #fff; display: block; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.2); max-width: 100%; max-height: 100%; }
-        #ui { position: absolute; color: #333; pointer-events: none; text-align: center; width: 100%; }
-        #score { top: 10px; font-size: 32px; font-weight: bold; }
-        #msg { top: 50%; transform: translateY(-50%); font-size: 20px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 5px; }
+        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 15px; }
+        .container { max-width: 500px; margin: auto; background: #34495e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #f1c40f; margin-top: 0; }
+        .section { margin-bottom: 15px; border-bottom: 1px solid #5d6d7e; padding-bottom: 10px; }
+        label { display: block; font-size: 0.9em; margin-bottom: 5px; color: #bdc3c7; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input { width: 100%; padding: 10px; border: none; border-radius: 5px; background: #ecf0f1; font-size: 1em; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 5px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:active { background: #d35400; }
+        .result-box { margin-top: 20px; padding: 15px; background: #1e272e; border-radius: 5px; border-left: 5px solid #f1c40f; }
+        .result-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 1.1em; }
+        .val { font-weight: bold; color: #f1c40f; }
     </style>
 </head>
 <body>
 
-    <canvas id="gameCanvas"></canvas>
-    <div id="ui">
-        <div id="score">0</div>
-        <div id="msg">画面を長押しで上昇<br>離して下降</div>
+<div class="container">
+    <h2>諸元算定モジュール</h2>
+
+    <div class="section">
+        <label>① 陣地座標 (Gun Pos)</label>
+        <div class="grid">
+            <input type="number" id="gx" placeholder="X (East)">
+            <input type="number" id="gy" placeholder="Y (North)">
+        </div>
     </div>
 
+    <div class="section">
+        <label>② 観測所座標 (OP Pos)</label>
+        <div class="grid">
+            <input type="number" id="ox" placeholder="X (East)">
+            <input type="number" id="oy" placeholder="Y (North)">
+        </div>
+    </div>
+
+    <div class="section">
+        <label>③ 目標座標 (Target Pos)</label>
+        <div class="grid">
+            <input type="number" id="tx" placeholder="X (East)">
+            <input type="number" id="ty" placeholder="Y (North)">
+        </div>
+    </div>
+
+    <button onclick="calculate()">算定実行</button>
+
+    <div class="result-box" id="results">
+        <div class="result-item">射距離: <span class="val" id="r_dist">-</span> m</div>
+        <div class="result-item">射向 (ミル): <span class="val" id="r_az">-</span> mil</div>
+        <div class="result-item">観測角 (ミル): <span class="val" id="r_op_az">-</span> mil</div>
+        <div class="result-item">OT距離: <span class="val" id="r_ot_dist">-</span> m</div>
+    </div>
+</div>
+
 <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score");
-    const msgEl = document.getElementById("msg");
-
-    // 画面サイズ設定 (レトロ感出すために少し小さめのアスペクト比)
-    canvas.width = 360;
-    canvas.height = 640;
-
-    // ゲーム状態
-    let gameState = "ready"; // ready, playing, over
-    let score = 0;
-    let frameCount = 0;
-
-    // 針（プレイヤー）の設定
-    const needle = {
-        x: 50,
-        y: canvas.height / 2,
-        width: 40,
-        height: 4,
-        dy: 0,
-        gravity: 0.15,
-        lift: -4,
-        isLifting: false
-    };
-
-    // 糸（障害物）の設定
-    const walls = [];
-    const wallWidth = 20; // 糸の太さ
-    let wallGap = 180; // 初期の通れる隙間
-    const minGap = 80;   // 最小の隙間
-    const wallSpeed = 2; // 画面が流れる速度
-
-    // 入力検知
-    window.addEventListener("mousedown", startLift);
-    window.addEventListener("mouseup", stopLift);
-    window.addEventListener("touchstart", (e) => { e.preventDefault(); startLift(); }, {passive: false});
-    window.addEventListener("touchend", stopLift);
-
-    function startLift() {
-        if (gameState === "ready") {
-            startGame();
-        } else if (gameState === "playing") {
-            needle.isLifting = true;
-        } else if (gameState === "over") {
-            if(frameCount > 30) resetGame(); // 少し待ってからリセット可能に
-        }
+    function toMil(rad) {
+        // ラジアンをミル(6400)に変換
+        let mil = rad * (3200 / Math.PI);
+        if (mil < 0) mil += 6400;
+        return Math.round(mil);
     }
 
-    function stopLift() {
-        needle.isLifting = false;
-    }
+    function calculate() {
+        // 入力値取得
+        const gx = parseFloat(document.getElementById('gx').value);
+        const gy = parseFloat(document.getElementById('gy').value);
+        const ox = parseFloat(document.getElementById('ox').value);
+        const oy = parseFloat(document.getElementById('oy').value);
+        const tx = parseFloat(document.getElementById('tx').value);
+        const ty = parseFloat(document.getElementById('ty').value);
 
-    function startGame() {
-        gameState = "playing";
-        msgEl.style.display = "none";
-        needle.dy = needle.lift; // スタート時に少し浮かせる
-    }
-
-    function resetGame() {
-        gameState = "ready";
-        msgEl.style.display = "block";
-        msgEl.innerHTML = "画面を長押しで上昇<br>離して下降";
-        score = 0;
-        scoreEl.innerText = "0";
-        needle.y = canvas.height / 2;
-        needle.dy = 0;
-        walls.length = 0;
-        wallGap = 180;
-        frameCount = 0;
-        gameLoop(); // 描画のみの状態に戻す
-    }
-
-    function gameOver() {
-        gameState = "over";
-        msgEl.style.display = "block";
-        msgEl.innerHTML = `GAME OVER<br>Score: ${score}<br>タップでリトライ`;
-        frameCount = 0; // リトライまでのウェイト用
-    }
-
-    // 障害物の生成
-    function spawnWall() {
-        const lastWall = walls[walls.length - 1];
-        let nextY;
-
-        if (lastWall) {
-            // 前回の隙間の中央を基準に、上下にランダムにずらす
-            const lastMidY = lastWall.top + (lastWall.gap / 2);
-            const change = (Math.random() - 0.5) * 150; // ずれる幅
-            nextY = lastMidY + change;
-        } else {
-            nextY = canvas.height / 2;
-        }
-
-        // 画面外に出すぎないように調整
-        const padding = 50;
-        nextY = Math.max(padding + wallGap/2, Math.min(canvas.height - padding - wallGap/2, nextY));
-
-        const topHeight = nextY - (wallGap / 2);
-
-        walls.push({
-            x: canvas.width,
-            top: topHeight,
-            gap: wallGap
-        });
-
-        // 難易度上昇：徐々に隙間を狭くする
-        if (wallGap > minGap) {
-            wallGap -= 0.5;
-        }
-    }
-
-    // 衝突判定
-    function checkCollision() {
-        // 天井と床
-        if (needle.y < 0 || needle.y + needle.height > canvas.height) {
-            return true;
-        }
-
-        // 糸（壁）
-        for (let i = 0; i < walls.length; i++) {
-            let w = walls[i];
-            // 針の先端（右端）が壁の横幅にあるか
-            if (needle.x + needle.width > w.x && needle.x < w.x + wallWidth) {
-                // 上の壁または下の壁に当たったか
-                if (needle.y < w.top || needle.y + needle.height > w.top + w.gap) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // 更新処理
-    function update() {
-        if (gameState !== "playing") {
-            frameCount++;
-            if (gameState === "ready") {
-                // タイトル画面では針を上下にふわふわさせる
-                needle.y = canvas.height / 2 + Math.sin(frameCount / 10) * 10;
-            }
+        if (isNaN(gx) || isNaN(gy) || isNaN(tx) || isNaN(ty)) {
+            alert("陣地と目標の座標を入力してください");
             return;
         }
 
-        frameCount++;
+        // 1. 陣地から目標への計算
+        const dx = tx - gx;
+        const dy = ty - gy;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const azRad = Math.atan2(dx, dy); // 北基準(Y軸)の角度
+        const azMil = toMil(azRad);
 
-        // 物理演算
-        if (needle.isLifting) {
-            needle.dy += needle.lift * 0.1; // 徐々に加速
-        } else {
-            needle.dy += needle.gravity;
-        }
-        // 速度制限
-        needle.dy = Math.max(-5, Math.min(5, needle.dy));
-        needle.y += needle.dy;
-
-        // 障害物の移動と生成
-        for (let i = walls.length - 1; i >= 0; i--) {
-            walls[i].x -= wallSpeed;
-            // 画面外に出たら削除
-            if (walls[i].x + wallWidth < 0) {
-                walls.splice(i, 1);
-                score++;
-                scoreEl.innerText = score;
-            }
+        // 2. 観測所から目標への計算 (OT計算)
+        let opAzMil = "-";
+        let otDist = "-";
+        if (!isNaN(ox) && !isNaN(oy)) {
+            const odx = tx - ox;
+            const ody = ty - oy;
+            otDist = Math.sqrt(odx*odx + ody*ody).toFixed(0);
+            const opAzRad = Math.atan2(odx, ody);
+            opAzMil = toMil(opAzRad);
         }
 
-        // 一定間隔で新しい壁を生成
-        if (frameCount % 60 === 0) {
-            spawnWall();
-        }
-
-        // 衝突チェック
-        if (checkCollision()) {
-            gameOver();
-        }
+        // 結果表示
+        document.getElementById('r_dist').innerText = dist.toFixed(0);
+        document.getElementById('r_az').innerText = azMil;
+        document.getElementById('r_op_az').innerText = opAzMil;
+        document.getElementById('r_ot_dist').innerText = otDist;
     }
-
-    // 描画処理
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 針の描画（グレーの四角形）
-        ctx.fillStyle = "#555";
-        ctx.fillRect(needle.x, needle.y, needle.width, needle.height);
-        // 針の穴っぽく丸を描く
-        ctx.beginPath();
-        ctx.arc(needle.x + 5, needle.y + needle.height/2, 1.5, 0, Math.PI*2);
-        ctx.fillStyle = "#fff";
-        ctx.fill();
-
-        // 糸（壁）の描画
-        ctx.fillStyle = "#000"; // 昔のゲームっぽく黒
-        walls.forEach(w => {
-            // 上の壁
-            ctx.fillRect(w.x, 0, wallWidth, w.top);
-            // 下の壁
-            ctx.fillRect(w.x, w.top + w.gap, wallWidth, canvas.height - (w.top + w.gap));
-        });
-    }
-
-    // ゲームループ
-    function gameLoop() {
-        update();
-        draw();
-        if (gameState !== "over") {
-            requestAnimationFrame(gameLoop);
-        } else {
-            // ゲームオーバー時も最後のフレームを描画し続ける
-            draw();
-        }
-    }
-
-    // 初期生成とループ開始
-    spawnWall();
-    gameLoop();
-
 </script>
+
 </body>
 </html>
