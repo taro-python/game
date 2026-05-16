@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Advanced Grid System</title>
+    <title>MGRS Plotter System</title>
     <style>
         body { 
-            font-family: sans-serif; 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
             background: #111111; 
             margin: 0; 
             overflow: hidden; 
             touch-action: none; 
             user-select: none; 
+            color: #e0e0e0;
         }
         canvas { 
             position: absolute; 
@@ -21,22 +22,162 @@
             height: 100vh; 
             z-index: 1; 
         }
+
+        /* ハンバーガーメニューボタン */
+        .menu-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 45px;
+            height: 45px;
+            background: rgba(30, 39, 46, 0.9);
+            border: 1px solid #3c6382;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            padding: 12px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .menu-btn div {
+            width: 100%;
+            height: 3px;
+            background: #f5f6fa;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        /* 座標登録サイドパネル */
+        .side-panel {
+            position: absolute;
+            top: 0;
+            left: -320px; /* 初期状態は隠す */
+            width: 300px;
+            height: 100vh;
+            background: rgba(30, 39, 46, 0.95);
+            box-shadow: 5px 0 25px rgba(0,0,0,0.7);
+            z-index: 90;
+            transition: transform 0.3s ease;
+            padding: 80px 20px 20px 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 1px solid #3c6382;
+        }
+        .side-panel.open {
+            transform: translateX(320px);
+        }
+        .side-panel h3 {
+            color: #00d2d3;
+            margin-top: 0;
+            border-bottom: 2px solid #3c6382;
+            padding-bottom: 8px;
+            font-size: 1.2em;
+        }
+
+        /* 入力グループのスタイル */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .label-target { color: #ff6b6b; } /* 赤十字 */
+        .label-op { color: #54a0ff; }     /* 青三角 */
+        .label-pos { color: #ff9f43; }    /* 赤三角（陣地） */
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #2f3640;
+            border: 1px solid #718093;
+            border-radius: 6px;
+            color: #fff;
+            font-family: monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            box-sizing: border-box;
+            letter-spacing: 1px;
+        }
+        input[type="text"]:focus {
+            outline: 2px solid #00d2d3;
+            background: #353b48;
+        }
+        .hint {
+            font-size: 0.75em;
+            color: #9c88ff;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: #10ac84;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .btn-submit:hover { background: #1dd1a1; }
+
+        /* 右上インフォパネル */
         .info-panel {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 15px;
+            right: 15px;
             background: rgba(0, 0, 0, 0.7);
-            color: #27ae60;
+            color: #1dd1a1;
             padding: 8px 12px;
             border-radius: 4px;
             font-family: monospace;
             font-weight: bold;
             z-index: 10;
             pointer-events: none;
+            font-size: 0.9em;
         }
     </style>
 </head>
 <body>
+
+<!-- ハンバーガーボタン -->
+<div class="menu-btn" onclick="toggleMenu()">
+    <div></div>
+    <div></div>
+    <div></div>
+</div>
+
+<!-- サイドパネル -->
+<div class="side-panel" id="sidePanel">
+    <h3>座標登録 (MGRS)</h3>
+    
+    <div class="input-group">
+        <label class="label-pos">▼ 陣地座標 (赤三角 / 基準点)</label>
+        <input type="text" id="mgrs_pos" placeholder="例: 12345678" value="50005000">
+        <span class="hint">※8桁(10m単位) または 10桁(1m単位)</span>
+    </div>
+
+    <div class="input-group">
+        <label class="label-op">▼ 観測座標 (青三角)</label>
+        <input type="text" id="mgrs_op" placeholder="例: 12505200" value="52005300">
+    </div>
+
+    <div class="input-group">
+        <label class="label-target">▼ 目標座標 (赤十字)</label>
+        <input type="text" id="mgrs_target" placeholder="例: 13005500" value="55005800">
+    </div>
+
+    <button class="btn-submit" onclick="processCoordinates()">座標をマップに反映</button>
+</div>
 
 <div class="info-panel" id="info">Scale: 1.00</div>
 <canvas id="gridCanvas"></canvas>
@@ -46,11 +187,76 @@
     const ctx = canvas.getContext('2d');
     const info = document.getElementById('info');
     
-    let scale = 1.0; 
+    let scale = 0.5; // 少し広めに見えるように初期調整
     let offset = { x: 0, y: 0 };
     
     let isDragging = false;
     let lastX, lastY, lastPinchDist = null;
+
+    // 展開される実メートル相対座標（陣地を0,0としたときの位置）
+    let points = {
+        pos: { x: 0, y: 0, valid: false },      // 陣地
+        op: { x: 0, y: 0, valid: false },       // 観測所
+        target: { x: 0, y: 0, valid: false }    // 目標
+    };
+
+    function toggleMenu() {
+        document.getElementById('sidePanel').classList.toggle('open');
+    }
+
+    // MGRSの数字文字列から、東(E)・北(N)のメートル数値を切り出す関数
+    function parseMGRS(str) {
+        const cleaned = str.replace(/\s+/g, ''); // 空白除去
+        const len = cleaned.length;
+        
+        if (len !== 8 && len !== 10) return null;
+        
+        const half = len / 2;
+        let east = parseInt(cleaned.substring(0, half));
+        let north = parseInt(cleaned.substring(half));
+        
+        if (isNaN(east) || isNaN(north)) return null;
+
+        // 8桁(10m単位)の場合はメートル(1m単位)に変換するため10倍する
+        if (len === 8) {
+            east *= 10;
+            north *= 10;
+        }
+        return { e: east, n: north };
+    }
+
+    // 入力された座標を処理
+    function processCoordinates() {
+        const rawPos = parseMGRS(document.getElementById('mgrs_pos').value);
+        const rawOp = parseMGRS(document.getElementById('mgrs_op').value);
+        const rawTarget = parseMGRS(document.getElementById('mgrs_target').value);
+
+        if (!rawPos) {
+            alert("陣地座標(基準)の入力が正しくありません。8桁または10桁の数字を入力してください。");
+            return;
+        }
+
+        // 陣地を基準点 (0,0) とする
+        points.pos = { x: 0, y: 0, valid: true };
+
+        // 観測所：陣地からの相対メートル
+        if (rawOp) {
+            points.op = { x: rawOp.e - rawPos.e, y: rawOp.n - rawPos.n, valid: true };
+        } else {
+            points.op.valid = false;
+        }
+
+        // 目標：陣地からの相対メートル
+        if (rawTarget) {
+            points.target = { x: rawTarget.e - rawPos.e, y: rawTarget.n - rawPos.n, valid: true };
+        } else {
+            points.target.valid = false;
+        }
+
+        // メニューを閉じて再描画
+        toggleMenu();
+        render();
+    }
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -65,47 +271,90 @@
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const baseStep = 100;
-        const gStep = baseStep * scale;
+        // 1マスの実サイズ＝100メートルとする
+        const meterPerGrid = 100;
+        const gStep = meterPerGrid * scale; 
         
-        ctx.strokeStyle = "#2c3e50"; 
+        // --- 1. グリッド(マス目)の描画 ---
+        ctx.strokeStyle = "#1e272e"; 
         ctx.lineWidth = 1;
         
-        // 縦線
         const startX = offset.x % gStep;
         for (let x = startX; x < canvas.width; x += gStep) { 
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); 
         }
-        
-        // 横線
         const startY = offset.y % gStep;
         for (let y = startY; y < canvas.height; y += gStep) { 
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); 
         }
 
-        // 座標原点 (0, 0) の赤十字
-        ctx.strokeStyle = "#e74c3c";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(offset.x - 15, offset.y); ctx.lineTo(offset.x + 15, offset.y);
-        ctx.moveTo(offset.x, offset.y - 15); ctx.lineTo(offset.x, offset.y + 15);
-        ctx.stroke();
+        // メートル座標から画面のピクセル位置へ変換する内包関数 (MGRSは上が北[+Y], 右が東[+X])
+        const toPX = (mx, my) => ({
+            x: offset.x + mx * scale,
+            y: offset.y - my * scale // 上方向をプラスにするためマイナス
+        });
 
-        info.innerText = `Scale: ${scale.toFixed(2)}`;
+        // --- 2. 各登録座標のシンボル描画 ---
+
+        // ① 陣地座標 (赤三角)
+        if (points.pos.valid) {
+            const p = toPX(points.pos.x, points.pos.y);
+            ctx.fillStyle = "#ff9f43";
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y - 12);     // 上頂点
+            ctx.lineTo(p.x + 12, p.y + 10); // 右下
+            ctx.lineTo(p.x - 12, p.y + 10); // 左下
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
+            ctx.fillText("陣地", p.x + 16, p.y + 5);
+        }
+
+        // ② 観測座標 (青三角)
+        if (points.op.valid) {
+            const p = toPX(points.op.x, points.op.y);
+            ctx.fillStyle = "#54a0ff";
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y - 12);
+            ctx.lineTo(p.x + 12, p.y + 10);
+            ctx.lineTo(p.x - 12, p.y + 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.fillText("観測所(OP)", p.x + 16, p.y + 5);
+        }
+
+        // ③ 目標座標 (赤十字)
+        if (points.target.valid) {
+            const p = toPX(points.target.x, points.target.y);
+            ctx.strokeStyle = "#ff6b6b";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            // 十字の描画
+            ctx.moveTo(p.x - 15, p.y); ctx.lineTo(p.x + 15, p.y);
+            ctx.moveTo(p.x, p.y - 15); ctx.lineTo(p.x, p.y + 15);
+            ctx.stroke();
+            
+            // 中央に識別用の小さな丸
+            ctx.fillStyle = "#ff6b6b";
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = "#fff";
+            ctx.fillText("目標(TG)", p.x + 18, p.y + 5);
+        }
+
+        info.innerText = `Scale: ${scale.toFixed(2)} (1マス=100m)`;
     }
 
-    // 指定した画面座標（centerX, centerY）を中心に拡大縮小する共通関数
+    // --- ズーム制御関数 ---
     function zoomAt(centerX, centerY, zoomFactor) {
         const newScale = scale * zoomFactor;
-        if (newScale < 0.1 || newScale > 10) return; // ズーム制限
-
-        // ズーム中心点の「グリッド原点からの相対距離」が維持されるように位置を補正
+        if (newScale < 0.05 || newScale > 20) return; 
         offset.x = centerX - (centerX - offset.x) * zoomFactor;
         offset.y = centerY - (centerY - offset.y) * zoomFactor;
         scale = newScale;
     }
 
-    // 二本指の中心と距離を取得
     function getPinch(t) { 
         return { 
             d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), 
@@ -113,8 +362,11 @@
         }; 
     }
 
-    // --- タッチ操作 ---
+    // --- タッチイベント ---
     canvas.addEventListener('touchstart', e => {
+        // メニューが開いているときはマップ操作を無効化して誤動作防止
+        if(document.getElementById('sidePanel').classList.contains('open')) return;
+
         if(e.touches.length == 1){ 
             isDragging = true; 
             lastX = e.touches[0].clientX; 
@@ -127,7 +379,9 @@
     });
 
     canvas.addEventListener('touchmove', e => {
+        if(!isDragging && lastPinchDist === null) return;
         e.preventDefault();
+        
         if(e.touches.length == 1 && isDragging){ 
             offset.x += e.touches[0].clientX - lastX; 
             offset.y += e.touches[0].clientY - lastY; 
@@ -136,9 +390,7 @@
         } else if(e.touches.length == 2){ 
             const p = getPinch(e.touches); 
             if(lastPinchDist){ 
-                const zoomFactor = p.d / lastPinchDist;
-                // 二本指の「真ん中の点」を基準にズーム
-                zoomAt(p.m.x, p.m.y, zoomFactor);
+                zoomAt(p.m.x, p.m.y, p.d / lastPinchDist);
                 lastPinchDist = p.d; 
             } 
         }
@@ -147,8 +399,11 @@
 
     window.addEventListener('touchend', () => { isDragging = false; lastPinchDist = null; });
     
-    // --- PC用（マウス操作） ---
-    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+    // --- マウスイベント ---
+    canvas.addEventListener('mousedown', e => { 
+        if(document.getElementById('sidePanel').classList.contains('open')) return;
+        isDragging = true; lastX = e.clientX; lastY = e.clientY; 
+    });
     window.addEventListener('mousemove', e => { 
         if(isDragging){ 
             offset.x += e.clientX - lastX; 
@@ -162,15 +417,15 @@
     
     canvas.addEventListener('wheel', e => { 
         e.preventDefault(); 
-        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        // 「マウスカーソルの位置」を基準にズーム
-        zoomAt(e.clientX, e.clientY, zoomFactor);
+        zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.9 : 1.1);
         render(); 
     }, {passive:false});
 
+    // 初期起動
     window.onresize = () => { resizeCanvas(); render(); };
     resizeCanvas();
-    render();
+    // 初期値のサンプル座標を展開
+    processCoordinates(); 
 </script>
 </body>
 </html>
