@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Grid Base System</title>
+    <title>Advanced Grid System</title>
     <style>
         body { 
             font-family: sans-serif; 
@@ -21,7 +21,6 @@
             height: 100vh; 
             z-index: 1; 
         }
-        /* 画面右上に現在のスケール（倍率）を表示する簡易UI */
         .info-panel {
             position: absolute;
             top: 10px;
@@ -47,36 +46,29 @@
     const ctx = canvas.getContext('2d');
     const info = document.getElementById('info');
     
-    // 画面の表示位置と倍率の初期値
     let scale = 1.0; 
     let offset = { x: 0, y: 0 };
     
     let isDragging = false;
-    let lastX, lastY, lastPinchDist = null, lastPinchMid = null;
+    let lastX, lastY, lastPinchDist = null;
 
-    // キャンバスのサイズを画面いっぱいに合わせる
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        
-        // 初回のみ、画面の中心を座標(0,0)の基準点にする
         if (offset.x === 0 && offset.y === 0) {
             offset.x = canvas.width / 2;
             offset.y = canvas.height / 2;
         }
     }
 
-    // マス目（グリッド）を描画するメイン処理
     function render() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 基準となるマスの間隔（1マス = 100ピクセル）
         const baseStep = 100;
         const gStep = baseStep * scale;
         
-        // 画面のスクロール位置（offset）に合わせて格子状の線を描く
-        ctx.strokeStyle = "#2c3e50"; // マス目の色（暗めの青・グレー）
+        ctx.strokeStyle = "#2c3e50"; 
         ctx.lineWidth = 1;
         
         // 縦線
@@ -91,7 +83,7 @@
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); 
         }
 
-        // 座標原点 (0, 0) に小さな十字マークを表示（目印用）
+        // 座標原点 (0, 0) の赤十字
         ctx.strokeStyle = "#e74c3c";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -99,11 +91,21 @@
         ctx.moveTo(offset.x, offset.y - 15); ctx.lineTo(offset.x, offset.y + 15);
         ctx.stroke();
 
-        // 右上のUIに現在の倍率を表示
         info.innerText = `Scale: ${scale.toFixed(2)}`;
     }
 
-    // --- スマホ用タッチ操作（ドラッグ ＆ ピンチズーム） ---
+    // 指定した画面座標（centerX, centerY）を中心に拡大縮小する共通関数
+    function zoomAt(centerX, centerY, zoomFactor) {
+        const newScale = scale * zoomFactor;
+        if (newScale < 0.1 || newScale > 10) return; // ズーム制限
+
+        // ズーム中心点の「グリッド原点からの相対距離」が維持されるように位置を補正
+        offset.x = centerX - (centerX - offset.x) * zoomFactor;
+        offset.y = centerY - (centerY - offset.y) * zoomFactor;
+        scale = newScale;
+    }
+
+    // 二本指の中心と距離を取得
     function getPinch(t) { 
         return { 
             d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), 
@@ -111,6 +113,7 @@
         }; 
     }
 
+    // --- タッチ操作 ---
     canvas.addEventListener('touchstart', e => {
         if(e.touches.length == 1){ 
             isDragging = true; 
@@ -120,7 +123,6 @@
             isDragging = false; 
             const p = getPinch(e.touches); 
             lastPinchDist = p.d; 
-            lastPinchMid = p.m; 
         }
     });
 
@@ -133,21 +135,17 @@
             lastY = e.touches[0].clientY; 
         } else if(e.touches.length == 2){ 
             const p = getPinch(e.touches); 
-            if(lastPinchMid){ 
-                offset.x += p.m.x - lastPinchMid.x; 
-                offset.y += p.m.y - lastPinchMid.y; 
-                lastPinchMid = p.m; 
-            } 
             if(lastPinchDist){ 
-                const newScale = scale * (p.d / lastPinchDist);
-                if(newScale > 0.1 && newScale < 10) scale = newScale; // ズーム範囲を制限
+                const zoomFactor = p.d / lastPinchDist;
+                // 二本指の「真ん中の点」を基準にズーム
+                zoomAt(p.m.x, p.m.y, zoomFactor);
                 lastPinchDist = p.d; 
             } 
         }
         render();
     }, {passive:false});
 
-    window.addEventListener('touchend', () => { isDragging = false; lastPinchDist = null; lastPinchMid = null; });
+    window.addEventListener('touchend', () => { isDragging = false; lastPinchDist = null; });
     
     // --- PC用（マウス操作） ---
     canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
@@ -161,14 +159,15 @@
         }
     });
     window.addEventListener('mouseup', () => isDragging = false);
+    
     canvas.addEventListener('wheel', e => { 
         e.preventDefault(); 
-        const newScale = scale * (e.deltaY > 0 ? 0.9 : 1.1);
-        if(newScale > 0.1 && newScale < 10) scale = newScale;
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        // 「マウスカーソルの位置」を基準にズーム
+        zoomAt(e.clientX, e.clientY, zoomFactor);
         render(); 
     }, {passive:false});
 
-    // 初期化実行
     window.onresize = () => { resizeCanvas(); render(); };
     resizeCanvas();
     render();
