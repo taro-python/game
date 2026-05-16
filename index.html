@@ -3,76 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mortar Plotter G6 - Setup</title>
+    <title>Mortar Plotter G6 - Professional</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; overflow: hidden; touch-action: none; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; overflow: hidden; touch-action: none; user-select: none; }
         
-        /* 登録画面のスタイル */
+        /* 初期登録画面 */
         #setup-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #2d3436; z-index: 100; display: flex; flex-direction: column;
             align-items: center; justify-content: center; overflow-y: auto; padding: 20px; box-sizing: border-box;
         }
-        .setup-card { background: #34495e; padding: 20px; border-radius: 10px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .setup-card h2 { color: #f1c40f; text-align: center; margin-top: 0; }
+        .setup-card { background: #34495e; padding: 25px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .setup-card h2 { color: #f1c40f; text-align: center; margin-top: 0; font-size: 1.5em; letter-spacing: 1px; }
         .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; font-size: 0.8em; margin-bottom: 5px; color: #bdc3c7; }
+        .input-group label { display: block; font-size: 0.85em; margin-bottom: 5px; color: #bdc3c7; font-weight: bold; }
         .input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input { width: 100%; padding: 10px; border-radius: 4px; border: none; background: #ecf0f1; box-sizing: border-box; font-weight: bold; }
+        input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #455a64; background: #ecf0f1; box-sizing: border-box; font-weight: bold; color: #2c3e50; font-size: 1.1em; }
+        input:focus { outline: 2px solid #f1c40f; background: #fff; }
         
-        .btn-start { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-start { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 6px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 15px; transition: background 0.2s; }
+        .btn-start:hover { background: #2ecc71; }
 
-        /* メイン画面のスタイル（既存） */
-        .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; display: none; }
-        .panel { background: rgba(45, 52, 54, 0.9); padding: 12px; border-radius: 8px; pointer-events: auto; }
-        .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-top: 8px; }
-        button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
+        /* メインUIパネル */
+        .ui-panel { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; pointer-events: none; }
+        .panel { background: rgba(45, 52, 54, 0.95); padding: 15px; border-radius: 8px; pointer-events: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid #4f5d73; }
+        .panel label { color: #f1c40f; font-weight: bold; }
+        .btn-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+        button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 1em; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        
         canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background: #111; }
-        .bottom-panel { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; pointer-events: auto; max-height: 20vh; overflow-y: auto; background: rgba(0,0,0,0.8); border-radius: 8px; display: none; }
+        
+        /* 修正射 弾着展開図（履歴パネル） */
+        .bottom-panel { 
+            position: absolute; bottom: 15px; left: 10px; right: 10px; z-index: 10; 
+            pointer-events: auto; max-height: 28vh; overflow-y: auto; 
+            background: rgba(20, 20, 20, 0.9); border-radius: 8px; border: 1px solid #444;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: none;
+        }
+        .history-header { background: #2c3e50; padding: 8px 12px; font-size: 0.85em; font-weight: bold; color: #bdc3c7; display: flex; justify-content: space-between; border-top-left-radius: 7px; border-top-right-radius: 7px; }
+        .history-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.9em; }
+        .history-table th { background: #34495e; color: #ecf0f1; padding: 6px; font-size: 0.8em; }
+        .history-table td { padding: 8px 6px; border-bottom: 1px solid #2a2a2a; color: #bdc3c7; font-family: monospace; }
+        .history-table tr.latest-row td { color: #f1c40f; font-weight: bold; background: rgba(241, 196, 15, 0.1); }
     </style>
 </head>
 <body>
 
+<!-- 初期座標登録画面 -->
 <div id="setup-screen">
     <div class="setup-card">
-        <h2>初期座標登録</h2>
+        <h2>初期座標登録 (G6)</h2>
         <div class="input-group">
-            <label>陣地1 (必須)</label>
-            <div class="input-pair"><input type="number" id="init_g1x" placeholder="X"> <input type="number" id="init_g1y" placeholder="Y"></div>
+            <label>陣地1 (必須 / 基準点)</label>
+            <div class="input-pair"><input type="number" id="init_g1x" placeholder="X" value="0"> <input type="number" id="init_g1y" placeholder="Y" value="0"></div>
         </div>
         <div class="input-group">
             <label>陣地2 (任意)</label>
             <div class="input-pair"><input type="number" id="init_g2x" placeholder="X"> <input type="number" id="init_g2y" placeholder="Y"></div>
         </div>
         <div class="input-group">
-            <label>観測所 (OP)</label>
+            <label>観測所 (OP / 任意)</label>
             <div class="input-pair"><input type="number" id="init_ox" placeholder="X"> <input type="number" id="init_oy" placeholder="Y"></div>
         </div>
         <div class="input-group">
-            <label>目標 (Target)</label>
+            <label>目標 (Target / 任意)</label>
             <div class="input-pair"><input type="number" id="init_tx" placeholder="X"> <input type="number" id="init_ty" placeholder="Y"></div>
         </div>
         <button class="btn-start" onclick="startApp()">登録して開始</button>
     </div>
 </div>
 
+<!-- メイン操作UI -->
 <div class="ui-panel" id="main-ui">
     <div class="panel">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-            <div><label style="font-size:0.7em">装薬</label><input type="number" id="chg" value="3"></div>
-            <div><label style="font-size:0.7em">方位(mil)</label><input type="number" id="az" value="3200"></div>
-            <div><label style="font-size:0.7em">射角</label><input type="number" id="elv" value="1100"></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div><label style="font-size:0.75em">装薬 (Chg)</label><input type="number" id="chg" value="3" min="3" max="3"></div>
+            <div><label style="font-size:0.75em">方位 (Az / mil)</label><input type="number" id="az" value="3200" min="0" max="6400"></div>
+            <div><label style="font-size:0.75em">射角 (Elv)</label><input type="number" id="elv" value="1100" min="800" max="1400"></div>
         </div>
         <div class="btn-grid">
-            <button style="background:#d35400" onclick="addPlot()">追加</button>
-            <button style="background:#27ae60" onclick="saveToStorage()">保存</button>
-            <button style="background:#c0392b" onclick="location.reload()">リセット</button>
+            <button style="background:#d35400" onclick="addPlot()">修正射 追加</button>
+            <button style="background:#27ae60" onclick="saveToStorage()">データ保存</button>
+            <button style="background:#c0392b" onclick="clearData()">リセット</button>
         </div>
     </div>
 </div>
 
+<!-- 描画キャンバス -->
 <canvas id="mainCanvas"></canvas>
-<div id="historyList" class="bottom-panel"></div>
+
+<!-- 修正射 弾着展開図（履歴表示） -->
+<div id="historyPanel" class="bottom-panel">
+    <div class="history-header">
+        <span>弾着展開履歴 (修正射)</span>
+        <span id="shotCount">計 0 発</span>
+    </div>
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th>第◯射</th>
+                <th>時刻</th>
+                <th>装薬</th>
+                <th>方位(mil)</th>
+                <th>射角</th>
+                <th>計算射程</th>
+            </tr>
+        </thead>
+        <tbody id="historyRows">
+            <!-- JavaScriptで動的に追加 -->
+        </tbody>
+    </table>
+</div>
 
 <script>
     const canvas = document.getElementById('mainCanvas');
@@ -80,21 +122,24 @@
     
     let plots = [];
     let basePoints = { guns: [], op: null, target: null };
-    let scale = 0.1;
+    let scale = 0.5; // 初期スケールを見やすく調整
     let offset = { x: 0, y: 0 };
     
     let isDragging = false;
     let lastX, lastY, lastPinchDist = null, lastPinchMid = null;
 
-    const REVERSE_TABLE = { 3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}] };
+    // 装薬3の射程テーブル
+    const REVERSE_TABLE = { 
+        3: [{elv:1400, r:600}, {elv:1300, r:1300}, {elv:1200, r:2100}, {elv:1100, r:2800}, {elv:1000, r:3500}, {elv:800, r:4500}] 
+    };
 
+    // アプリ開始処理
     function startApp() {
-        // 値の取得
         const g1x = parseFloat(document.getElementById('init_g1x').value);
         const g1y = parseFloat(document.getElementById('init_g1y').value);
-        if(isNaN(g1x) || isNaN(g1y)) return alert("陣地1は必須です");
+        if(isNaN(g1x) || isNaN(g1y)) return alert("陣地1の座標は必須です");
 
-        basePoints.guns.push({x: g1x, y: g1y});
+        basePoints.guns = [{x: g1x, y: g1y}];
         
         const g2x = parseFloat(document.getElementById('init_g2x').value);
         const g2y = parseFloat(document.getElementById('init_g2y').value);
@@ -108,109 +153,278 @@
         const ty = parseFloat(document.getElementById('init_ty').value);
         if(!isNaN(tx)) basePoints.target = {x: tx, y: ty};
 
-        // 画面切り替え
+        // UI表示切り替え
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('main-ui').style.display = 'block';
-        document.getElementById('historyList').style.display = 'block';
+        document.getElementById('historyPanel').style.display = 'block';
 
-        // 初期表示位置を陣地1に合わせる
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        offset.x = canvas.width / 2;
-        offset.y = canvas.height / 2;
+        // キャンバスサイズ初期化
+        resizeCanvas();
+
+        // ローカルストレージから過去データを復元
+        loadFromStorage();
         
         render();
     }
 
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // 陣地1が画面中央にくるように初期オフセットを設定
+        if(basePoints.guns.length > 0 && offset.x === 0 && offset.y === 0) {
+            offset.x = canvas.width / 2;
+            offset.y = canvas.height / 2;
+        }
+    }
+
+    window.onresize = () => { resizeCanvas(); render(); };
+
+    // 描画処理
     function render() {
+        if (basePoints.guns.length === 0) return;
+        
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 100mグリッド (座標0,0を基準)
-        ctx.strokeStyle = "#222";
+        // 100mグリッドの描画 (陣地1の座標を基準に整列)
+        ctx.strokeStyle = "#222222";
+        ctx.lineWidth = 1;
         const gStep = 100 * scale;
-        for (let x = offset.x % gStep; x < canvas.width; x += gStep) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
-        for (let y = offset.y % gStep; y < canvas.height; y += gStep) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+        
+        const startGridX = offset.x % gStep;
+        for (let x = startGridX; x < canvas.width; x += gStep) { 
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); 
+        }
+        const startGridY = offset.y % gStep;
+        for (let y = startGridY; y < canvas.height; y += gStep) { 
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); 
+        }
 
+        // 実座標から画面ピクセル座標への変換関数
         const toPX = (px, py) => ({
             x: offset.x + (px - basePoints.guns[0].x) * scale,
-            y: offset.y - (py - basePoints.guns[0].y) * scale
+            y: offset.y - (py - basePoints.guns[0].y) * scale  // Y軸反転処理
         });
 
-        // 陣地の描画 (青)
-        basePoints.guns.forEach(g => {
+        // 1. 陣地の描画 (青丸)
+        basePoints.guns.forEach((g, idx) => {
             const p = toPX(g.x, g.y);
             ctx.fillStyle = "#3498db";
-            ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 7); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = "10px sans-serif";
+            ctx.fillText("G" + (idx + 1), p.x + 12, p.y + 4);
         });
 
-        // 観測所の描画 (緑)
+        // 2. 観測所 (OP) の描画 (緑三角)
         if(basePoints.op) {
             const p = toPX(basePoints.op.x, basePoints.op.y);
             ctx.fillStyle = "#2ecc71";
-            ctx.beginPath(); ctx.moveTo(p.x, p.y-10); ctx.lineTo(p.x+10, p.y+10); ctx.lineTo(p.x-10, p.y+10); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(p.x, p.y - 10); ctx.lineTo(p.x + 10, p.y + 10); ctx.lineTo(p.x - 10, p.y + 10); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.fillText("OP", p.x + 12, p.y + 4);
         }
 
-        // 目標の描画 (白×)
+        // 3. 目標 (Target) の描画 (白✕)
         if(basePoints.target) {
             const p = toPX(basePoints.target.x, basePoints.target.y);
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(p.x-8, p.y-8); ctx.lineTo(p.x+8, p.y+8); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(p.x+8, p.y-8); ctx.lineTo(p.x-8, p.y+8); ctx.stroke();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(p.x - 8, p.y - 8); ctx.lineTo(p.x + 8, p.y + 8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p.x + 8, p.y - 8); ctx.lineTo(p.x - 8, p.y + 8); ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.fillText("TG", p.x + 12, p.y + 4);
         }
 
-        // 弾着プロットの描画
+        // 4. 弾着プロット（修正射）の描画
         plots.forEach((pl, i) => {
+            // ミル位をラジアンに変換 (3200mil = 180度)
             const rad = pl.az * (Math.PI / 3200);
+            // 陣地1からの相対位置を計算
             const gx = basePoints.guns[0].x + pl.range * Math.sin(rad);
             const gy = basePoints.guns[0].y + pl.range * Math.cos(rad);
             const p = toPX(gx, gy);
 
+            const isLatest = (i === plots.length - 1);
+
+            // 弾着のバーストエリア（公算誤差長方形）の仮想描画
             ctx.save();
-            ctx.translate(p.x, p.y); ctx.rotate(rad);
-            ctx.strokeStyle = (i === plots.length - 1) ? "#f1c40f" : "#e67e22";
-            ctx.strokeRect(-15*scale, -50*scale, 30*scale, 100*scale);
+            ctx.translate(p.x, p.y); 
+            ctx.rotate(-rad); // 射線方向へ回転
+            ctx.strokeStyle = isLatest ? "#f1c40f" : "#e67e22";
+            ctx.lineWidth = isLatest ? 2 : 1;
+            // スケールに応じたサイズで長方形を描画
+            ctx.strokeRect(-25 * scale, -50 * scale, 50 * scale, 100 * scale);
             ctx.restore();
-            ctx.fillStyle = (i === plots.length - 1) ? "#f1c40f" : "#e74c3c";
-            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill();
+
+            // 中心点プロット
+            ctx.fillStyle = isLatest ? "#f1c40f" : "#e74c3c";
+            ctx.beginPath(); ctx.arc(p.x, p.y, isLatest ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+            
+            // 修正射の番号テキスト
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace";
+            ctx.fillText("第" + (i + 1) + "射", p.x + 10, p.y - 6);
         });
     }
 
-    // --- インタラクション (G5から継承・最適化) ---
-    function getPinch(t) { return { d: Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), m: {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2} }; }
-    canvas.addEventListener('touchstart', e => {
-        if(e.touches.length==1){ isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
-        else if(e.touches.length==2){ isDragging=false; const p=getPinch(e.touches); lastPinchDist=p.d; lastPinchMid=p.m; }
-    });
-    canvas.addEventListener('touchmove', e => {
-        e.preventDefault();
-        if(e.touches.length==1 && isDragging){ offset.x+=e.touches[0].clientX-lastX; offset.y+=e.touches[0].clientY-lastY; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
-        else if(e.touches.length==2){ const p=getPinch(e.touches); if(lastPinchMid){ offset.x+=p.m.x-lastPinchMid.x; offset.y+=p.m.y-lastPinchMid.y; lastPinchMid=p.m; } if(lastPinchDist){ scale*=(p.d/lastPinchDist); lastPinchDist=p.d; } }
-        render();
-    }, {passive:false});
-    window.addEventListener('touchend', ()=>{ isDragging=false; lastPinchDist=null; lastPinchMid=null; });
-    
-    // マウス操作も維持
-    canvas.addEventListener('mousedown', e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
-    window.addEventListener('mousemove', e => { if(isDragging){ offset.x+=e.clientX-lastX; offset.y+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; render(); }});
-    window.addEventListener('mouseup', ()=>isDragging=false);
-    canvas.addEventListener('wheel', e => { e.preventDefault(); scale *= (e.deltaY>0?0.9:1.1); render(); }, {passive:false});
-
-    // 既存ロジック
+    // --- 計算ロジック ---
     function getRange(chg, elv) {
-        const table = REVERSE_TABLE[3];
-        for(let i=0; i<table.length-1; i++){
-            if(elv <= table[i].elv && elv >= table[i+1].elv) return table[i].r + (table[i+1].r - table[i].r) * ((elv - table[i].elv) / (table[i+1].elv - table[i].elv));
+        const table = REVERSE_TABLE[chg];
+        if(!table) return 0;
+        for(let i = 0; i < table.length - 1; i++){
+            if(elv <= table[i].elv && elv >= table[i+1].elv) {
+                // 線形補間計算
+                return table[i].r + (table[i+1].r - table[i].r) * ((elv - table[i].elv) / (table[i+1].elv - table[i].elv));
+            }
         }
         return 0;
     }
+
+    // 修正射の追加処理
     function addPlot() {
-        const r = getRange(parseInt(document.getElementById('chg').value), parseInt(document.getElementById('elv').value));
-        if(r<=0) return alert("射程外");
-        plots.push({ az: parseInt(document.getElementById('az').value), range: r, time: new Date().toLocaleTimeString() });
+        const chg = parseInt(document.getElementById('chg').value);
+        const az = parseInt(document.getElementById('az').value);
+        const elv = parseInt(document.getElementById('elv').value);
+
+        const r = getRange(chg, elv);
+        if(r <= 0) return alert("射程外の射角、または無効な装薬です(800〜1400の間で入力してください)");
+
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        
+        // 配列に追加
+        plots.push({ chg: chg, az: az, elv: elv, range: r, time: time });
+        
+        updateHistoryTable();
         render();
     }
-    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); };
+
+    // 修正射 弾着展開図（下部テーブル）の更新
+    function updateHistoryTable() {
+        const rowsContainer = document.getElementById('historyRows');
+        rowsContainer.innerHTML = "";
+        
+        document.getElementById('shotCount').innerText = `計 ${plots.length} 発`;
+
+        // 最新の弾着が一番上、または一番下になるよう展開（ここでは標準順）
+        plots.forEach((pl, i) => {
+            const tr = document.createElement('tr');
+            if (i === plots.length - 1) {
+                tr.className = "latest-row"; // 最新の射撃をハイライト
+            }
+
+            tr.innerHTML = `
+                <td>第 ${i + 1} 射</td>
+                <td>${pl.time}</td>
+                <td>${pl.chg}</td>
+                <td>${pl.az}</td>
+                <td>${pl.elv}</td>
+                <td>${Math.round(r = pl.range)} m</td>
+            `;
+            rowsContainer.appendChild(tr);
+        });
+
+        // 自動で履歴パネルの最下部へスクロール
+        const panel = document.getElementById('historyPanel');
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    // --- ストレージ管理機能 ---
+    function saveToStorage() {
+        if(plots.length === 0) return alert("保存するプロットデータがありません");
+        const data = {
+            basePoints: basePoints,
+            plots: plots
+        };
+        localStorage.setItem('mortar_plotter_g6_data', JSON.stringify(data));
+        alert("現在の弾着展開データをブラウザに保存しました。");
+    }
+
+    function loadFromStorage() {
+        const saved = localStorage.getItem('mortar_plotter_g6_data');
+        if(saved) {
+            try {
+                const data = JSON.parse(saved);
+                // 登録された初期ベース位置が一致する場合のみ自動読み込み
+                basePoints = data.basePoints;
+                plots = data.plots || [];
+                updateHistoryTable();
+            } catch(e) {
+                console.error("データ読み込み失敗", e);
+            }
+        }
+    }
+
+    function clearData() {
+        if(confirm("すべてのプロット情報と初期座標をリセットして再起動しますか？")) {
+            localStorage.removeItem('mortar_plotter_g6_data');
+            location.reload();
+        }
+    }
+
+    // --- インタラクション（ドラッグ・ピンチズーム操作） ---
+    function getPinch(t) { 
+        return { 
+            d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), 
+            m: { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 } 
+        }; 
+    }
+
+    canvas.addEventListener('touchstart', e => {
+        if(e.touches.length == 1){ 
+            isDragging = true; 
+            lastX = e.touches[0].clientX; 
+            lastY = e.touches[0].clientY; 
+        } else if(e.touches.length == 2){ 
+            isDragging = false; 
+            const p = getPinch(e.touches); 
+            lastPinchDist = p.d; 
+            lastPinchMid = p.m; 
+        }
+    });
+
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if(e.touches.length == 1 && isDragging){ 
+            offset.x += e.touches[0].clientX - lastX; 
+            offset.y += e.touches[0].clientY - lastY; 
+            lastX = e.touches[0].clientX; 
+            lastY = e.touches[0].clientY; 
+        } else if(e.touches.length == 2){ 
+            const p = getPinch(e.touches); 
+            if(lastPinchMid){ 
+                offset.x += p.m.x - lastPinchMid.x; 
+                offset.y += p.m.y - lastPinchMid.y; 
+                lastPinchMid = p.m; 
+            } 
+            if(lastPinchDist){ 
+                const newScale = scale * (p.d / lastPinchDist);
+                if(newScale > 0.01 && newScale < 10) { // 極端なズームを防止
+                    scale = newScale;
+                }
+                lastPinchDist = p.d; 
+            } 
+        }
+        render();
+    }, {passive:false});
+
+    window.addEventListener('touchend', () => { isDragging = false; lastPinchDist = null; lastPinchMid = null; });
+    
+    // PC（マウス）用操作
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mousemove', e => { 
+        if(isDragging){ 
+            offset.x += e.clientX - lastX; 
+            offset.y += e.clientY - lastY; 
+            lastX = e.clientX; 
+            lastY = e.clientY; 
+            render(); 
+        }
+    });
+    window.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('wheel', e => { 
+        e.preventDefault(); 
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = scale * zoomFactor;
+        if(newScale > 0.01 && newScale < 10) scale = newScale;
+        render(); 
+    }, {passive:false});
+
 </script>
 </body>
 </html>
