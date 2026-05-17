@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tactical Map - Base Menu System</title>
+    <title>Tactical Map - Clean Base</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -36,7 +36,7 @@
         }
         .side-panel.open { transform: translateX(340px); }
 
-        /* 2階層目：メニューのカテゴリー（アコーディオン）構造 */
+        /* 2階層目：メニューのカテゴリー構造 */
         .menu-category { border-bottom: 1px solid #2c3e50; }
         
         .menu-header {
@@ -63,6 +63,7 @@
             border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
 
+        /* 右上情報パネル（バージョン表示用に修正） */
         .info-panel {
             position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7);
             color: #1dd1a1; padding: 10px 14px; border-radius: 6px; font-family: monospace;
@@ -73,26 +74,23 @@
 </head>
 <body>
 
-<!-- 1階層目：メニューボタン -->
 <div class="menu-btn" onclick="toggleMenu(event)">
     <div></div><div></div><div></div>
 </div>
 
-<!-- サイドパネル -->
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
     
-    <!-- 2階層目：カテゴリー1「座標登録」 -->
     <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
                 <div class="input-group">
                     <label style="color:#00d2d3;">■ グリッド指定</label>
-                    <input type="text" id="mgrs_zone" placeholder="例: 54TYP" value="54TYP">
+                    <input type="text" id="mgrs_zone" placeholder="例: 54TYP" value="">
                 </div>
                 <div class="input-group">
                     <label style="color:#ff9f43;">▼ 陣地座標</label>
-                    <input type="text" id="mgrs_pos" placeholder="例: 0390580872" value="0390580872">
+                    <input type="text" id="mgrs_pos" placeholder="例: 0390580872" value="">
                 </div>
                 <div class="input-group">
                     <label style="color:#54a0ff;">▼ 第1観測座標 [OP1]</label>
@@ -111,7 +109,6 @@
         </div>
     </div>
 
-    <!-- 2階層目：カテゴリー2「マップ表示」 -->
     <div class="menu-category" id="cat_map_display">
         <div class="menu-header" onclick="toggleCategory('cat_map_display')">マップ表示</div>
         <div class="menu-content">
@@ -124,8 +121,8 @@
 </div>
 
 <div class="info-panel" id="info">
+    <div id="info_version">Version: V1.0</div>
     <div id="info_zone">Area: --</div>
-    <div id="info_scale">Scale: --</div>
 </div>
 
 <div id="map"></div>
