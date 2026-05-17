@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tactical Map - Modular System</title>
+    <title>Tactical Map - High Accuracy System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- ★世界標準のMGRS超高精度変換ライブラリを組み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.js"></script>
+
     <style>
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
@@ -17,7 +21,6 @@
         #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
 
-        /* 1階層目：ハンバーガーメニューボタン */
         .menu-btn {
             position: absolute; top: 15px; left: 15px; width: 45px; height: 45px;
             background: rgba(30, 39, 46, 0.9); border: 1px solid #3c6382; border-radius: 8px;
@@ -27,7 +30,6 @@
         }
         .menu-btn div { width: 100%; height: 3px; background: #f5f6fa; border-radius: 2px; }
 
-        /* スライド式のサイドパネル（メニュー本体） */
         .side-panel {
             position: absolute; top: 0; left: -340px; width: 320px; height: 100vh;
             background: rgba(24, 32, 38, 0.98); box-shadow: 5px 0 25px rgba(0,0,0,0.7);
@@ -36,7 +38,6 @@
         }
         .side-panel.open { transform: translateX(340px); }
 
-        /* 2階層目：メニューのカテゴリー構造 */
         .menu-category { border-bottom: 1px solid #2c3e50; }
         
         .menu-header {
@@ -50,7 +51,6 @@
         .menu-category.active .menu-content { max-height: 800px; transition: max-height 0.3s ease-in; }
         .menu-inner-padding { padding: 20px; }
 
-        /* 入力フォーム設定 */
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 6px; }
         input[type="text"] {
@@ -63,7 +63,6 @@
             border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
 
-        /* 新設：地図切り替え専用横並びボタン群 */
         .map-selector { display: flex; gap: 6px; margin-top: 8px; }
         .btn-map {
             flex: 1; padding: 12px 4px; background: #2c3e50; border: 1px solid #34495e;
@@ -72,7 +71,6 @@
         }
         .btn-map.active { background: #00d2d3; color: #111; border-color: #00d2d3; box-shadow: 0 0 10px rgba(0,210,211,0.4); }
 
-        /* 右上情報パネル */
         .info-panel {
             position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7);
             color: #1dd1a1; padding: 10px 14px; border-radius: 6px; font-family: monospace;
@@ -83,15 +81,12 @@
 </head>
 <body>
 
-<!-- 1階層目：メニューボタン -->
 <div class="menu-btn" onclick="toggleMenu(event)">
     <div></div><div></div><div></div>
 </div>
 
-<!-- サイドパネル -->
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
     
-    <!-- 2階層目：カテゴリー1「座標登録」 -->
     <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
@@ -116,12 +111,12 @@
                     <label style="color:#ff6b6b;">▼ 目標座標 [TG]</label>
                     <input type="text" id="mgrs_target" placeholder="例: 0500085000">
                 </div>
-                <button class="btn-submit" onclick="alert('座標登録の処理（予定）')">座標をマップに反映</button>
+                <!-- ★新設プログラムの関数を実行するように紐付け -->
+                <button class="btn-submit" onclick="processRegistration()">座標をマップに反映</button>
             </div>
         </div>
     </div>
 
-    <!-- 2階層目：カテゴリー2「マップ表示」 -->
     <div class="menu-category" id="cat_map_display">
         <div class="menu-header" onclick="toggleCategory('cat_map_display')">マップ表示</div>
         <div class="menu-content">
@@ -138,9 +133,8 @@
 
 </div>
 
-<!-- 右上のバージョン表示 -->
 <div class="info-panel" id="info">
-    <div id="info_version">Version: V1.1</div>
+    <div id="info_version">Version: V1.2</div>
     <div id="info_zone">Area: --</div>
 </div>
 
@@ -152,7 +146,6 @@
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
 
-    // 地図の仮初期化
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.0, 138.0], 5);
 
     function toggleMenu(e) {
@@ -180,8 +173,9 @@
     window.onload = () => { resizeCanvas(); };
 </script>
 
-<!-- ★ここで肉付け用の「別プログラム」を完璧に紐付けます -->
+<!-- 肉付け用の別プログラム群を紐付け -->
 <script src="map-control.js"></script>
+<script src="mgrs-processor.js"></script>
 
 </body>
 </html>
