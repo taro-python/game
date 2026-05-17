@@ -1,10 +1,12 @@
 /**
- * MGRS Tactical Map - Coordinates Processor (バグ修正版)
+ * MGRS Tactical Map - Coordinates Processor (完全同期・バグ修正版)
  */
 
 const tacticalMarkers = { pos: null, op1: null, op2: null, target: null };
 
 function convertMGRSToLatLng(zone, digits) {
+    if (!zone || !digits) return null;
+    
     let cleanZone = zone.trim().toUpperCase().replace(/\s+/g, '');
     let cleanDigits = digits.trim().replace(/\s+/g, '');
 
@@ -21,18 +23,18 @@ function convertMGRSToLatLng(zone, digits) {
 }
 
 function processRegistration() {
-    const zone = document.getElementById('mgrs_zone').value;
-    const posVal = document.getElementById('mgrs_pos').value;
-    const op1Val = document.getElementById('mgrs_op1').value;
-    const op2Val = document.getElementById('mgrs_op2').value;
-    const tgVal = document.getElementById('mgrs_target').value;
+    // 画面上のフォームから現在の文字を「リアルタイム」で確実に取得
+    const zone = document.getElementById('mgrs_zone').value.trim();
+    const posVal = document.getElementById('mgrs_pos').value.trim();
+    const op1Val = document.getElementById('mgrs_op1').value.trim();
+    const op2Val = document.getElementById('mgrs_op2').value.trim();
+    const tgVal = document.getElementById('mgrs_target').value.trim();
 
-    if (!zone.trim()) {
+    if (!zone) {
         alert("グリッド指定（例: 54TYP）を入力してください。");
         return;
     }
 
-    // ★タイポを完全に修正しました
     const coords = {
         pos: convertMGRSToLatLng(zone, posVal),
         op1: convertMGRSToLatLng(zone, op1Val),
@@ -74,14 +76,17 @@ function processRegistration() {
     });
 
     if (registeredCount > 0) {
-        if(bounds.length === 1) {
-            map.setView(bounds[0], 16);
+        // モザイク状態を消し去るため、遠軽演習場の地形が1枚でクッキリ見える「最大ズームレベル18」へ強制ジャンプ
+        if (bounds.length === 1) {
+            map.setView(bounds[0], 18);
         } else {
-            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
         }
-        document.getElementById('info_zone').innerText = `Area: ${zone.trim().toUpperCase()}`;
+        
+        // 右上の表示を更新
+        document.getElementById('info_zone').innerText = `Area: ${zone.toUpperCase()}`;
         closeMenu();
     } else {
-        alert("座標を解析できませんでした。\n「グリッド指定」に 54TYP、「陣地座標」に 10桁の数字 が入っているかご確認ください。");
+        alert("座標を解析できませんでした。\n「グリッド指定」に 54TYP、「陣地座標」に 10桁の数字 が正しく入っているかご確認ください。");
     }
 }
