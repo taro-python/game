@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tactical Map - Clean Base</title>
+    <title>Tactical Map - Modular System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -63,7 +63,16 @@
             border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
 
-        /* 右上情報パネル（バージョン表示用に修正） */
+        /* 新設：地図切り替え専用横並びボタン群 */
+        .map-selector { display: flex; gap: 6px; margin-top: 8px; }
+        .btn-map {
+            flex: 1; padding: 12px 4px; background: #2c3e50; border: 1px solid #34495e;
+            color: #bdc3c7; font-size: 0.85em; font-weight: bold; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-map.active { background: #00d2d3; color: #111; border-color: #00d2d3; box-shadow: 0 0 10px rgba(0,210,211,0.4); }
+
+        /* 右上情報パネル */
         .info-panel {
             position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7);
             color: #1dd1a1; padding: 10px 14px; border-radius: 6px; font-family: monospace;
@@ -74,12 +83,15 @@
 </head>
 <body>
 
+<!-- 1階層目：メニューボタン -->
 <div class="menu-btn" onclick="toggleMenu(event)">
     <div></div><div></div><div></div>
 </div>
 
+<!-- サイドパネル -->
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
     
+    <!-- 2階層目：カテゴリー1「座標登録」 -->
     <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
@@ -109,19 +121,26 @@
         </div>
     </div>
 
+    <!-- 2階層目：カテゴリー2「マップ表示」 -->
     <div class="menu-category" id="cat_map_display">
         <div class="menu-header" onclick="toggleCategory('cat_map_display')">マップ表示</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
-                <p style="margin:0; font-size:0.9em; color:#a4b0be;">※ここに地図切り替え等の機能を配置します。</p>
+                <label style="font-size:0.85em; font-weight:bold; color:#fff;">■ 背景地図切り替え</label>
+                <div class="map-selector">
+                    <button class="btn-map" id="btn_map_gsistd" onclick="changeMapLayer('gsistd')">陸自地図</button>
+                    <button class="btn-map" id="btn_map_gsisat" onclick="changeMapLayer('gsisat')">航空写真</button>
+                    <button class="btn-map" id="btn_map_off" onclick="changeMapLayer('off')">オフ</button>
+                </div>
             </div>
         </div>
     </div>
 
 </div>
 
+<!-- 右上のバージョン表示 -->
 <div class="info-panel" id="info">
-    <div id="info_version">Version: V1.0</div>
+    <div id="info_version">Version: V1.1</div>
     <div id="info_zone">Area: --</div>
 </div>
 
@@ -133,8 +152,8 @@
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
 
+    // 地図の仮初期化
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.0, 138.0], 5);
-    document.getElementById('map').style.background = '#111';
 
     function toggleMenu(e) {
         if(e) e.stopPropagation();
@@ -160,5 +179,9 @@
     window.onresize = resizeCanvas;
     window.onload = () => { resizeCanvas(); };
 </script>
+
+<!-- ★ここで肉付け用の「別プログラム」を完璧に紐付けます -->
+<script src="map-control.js"></script>
+
 </body>
 </html>
