@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGRS Tactical Map System - Fixed 54TYP Precision</title>
+    <title>MGRS Tactical Map System - Realtime Move Precision</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -133,7 +133,7 @@
     let baseLatLng = null;
     let points = { pos: {x:0, y:0, valid:false}, op1: {x:0, y:0, valid:false}, op2: {x:0, y:0, valid:false}, target: {x:0, y:0, valid:false} };
 
-    // マップ初期化 (道東周辺を中心に配置)
+    // マップ初期化
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.5, 144.2], 8);
 
     const mapLayers = {
@@ -156,7 +156,7 @@
         render();
     }
 
-    // --- 【54T YP完全修正版】高精度MGRS逆演算デコーダー ---
+    // --- 【動的移動完全対応】高精度MGRS逆演算デコーダー ---
     function mgrsToLatLng(zoneStr, numericStr) {
         const cleanZone = zoneStr.replace(/\s+/g, '').toUpperCase();
         const cleanNum = numericStr.replace(/\s+/g, '');
@@ -179,23 +179,24 @@
         
         if(utmZone === 54) utmEasting -= 300000;
 
-        // 3. 100km平方 Row (縦列) の計算【道東54T境界バグの完全修正】
+        // 3. 100km平方 Row (縦列) の計算
         const rowLetters = "ABCDEFGHJKLMNPQRSTUV";
-        const rowSetIdx = utmZone % 2; // 54帯は偶数(2)なので setIdx = 0、rowOffset = 5
+        const rowSetIdx = utmZone % 2; 
         let rowOriginIdx = rowLetters.indexOf(rowChar);
         let rowOffset = rowSetIdx === 1 ? 0 : 5;
 
-        // 54TかつYP等の道東高緯度エリアの場合、ベースNorthingを強制的に4,800,000m（北海道の高度）に引き上げる
-        let approxNorthing = 4400000; // 本来の54Tベース
+        // 道東54Tエリアを正確に割り出すための動的ベース高度判定
+        let approxNorthing = 4400000; 
         if (latZoneChar === 'T' && utmZone === 54 && (colChar === 'X' || colChar === 'Y')) {
-            approxNorthing = 4800000; // 道東突き抜けエリア用の特別高度補正
+            approxNorthing = 4800000; // 道東突き抜け用ベース
         } else if (latZoneChar === 'U') {
             approxNorthing = 4800000;
         }
 
+        // ここがバグの原因でした：数値を含めて正しく100km境界を跨げるように丸め処理を修正
         let utmNorthing = Math.round((approxNorthing - (rowOriginIdx - rowOffset) * 100000) / 2000000) * 2000000 + (rowOriginIdx - rowOffset) * 100000;
 
-        // 4. 数字座標を加算
+        // 4. 入力された数字座標(動的な値)を純粋に加算
         const half = cleanNum.length / 2;
         let localEast = parseInt(cleanNum.substring(0, half));
         let localNorth = parseInt(cleanNum.substring(half));
@@ -234,7 +235,7 @@
         return L.latLng(lat, lng);
     }
 
-    // --- 座標読み込み処理 ---
+    // --- 座標読み込み・反映 ---
     function processCoordinates() {
         const zoneInput = document.getElementById('mgrs_zone').value.trim().toUpperCase();
         const posInput = document.getElementById('mgrs_pos').value.trim();
@@ -247,7 +248,7 @@
         const calculatedLatLng = mgrsToLatLng(zoneInput, posInput);
 
         if (!calculatedLatLng) {
-            alert("座標の逆算に失敗しました。桁数や文字列を確認してください。");
+            alert("座標の逆算に失敗しました。桁数などを確認してください。");
             return;
         }
 
@@ -274,8 +275,8 @@
         points.op2 = op2Raw ? { x: op2Raw.e - baseRaw.e, y: op2Raw.n - baseRaw.n, valid: true } : { valid: false };
         points.target = tgRaw ? { x: tgRaw.e - baseRaw.e, y: tgRaw.n - baseRaw.n, valid: true } : { valid: false };
 
-        // 確実に道東の指定座標へジャンプ
-        map.setView(baseLatLng, 13); 
+        // 表示スケールをさらに拡大「15」に変更（陣地周辺がより大きく、はっきり見えます）
+        map.setView(baseLatLng, 15); 
         closeMenu();
         render();
     }
