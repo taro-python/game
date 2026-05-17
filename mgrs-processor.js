@@ -1,73 +1,54 @@
 /**
- * MGRS Tactical Map - Coordinates Processor
- * MGRS座標の解析・変換・マップへの登録処理を行う独立プログラム
+ * MGRS Tactical Map - Coordinates Processor (固定版)
  */
 
-// 各座標に配置するマップ上のマーカーを管理するオブジェクト
-const tacticalMarkers = {
-    pos: null,    // 陣地
-    op1: null,   // 第1観測所
-    op2: null,   // 第2観測所
-    target: null  // 目標
-};
+const tacticalMarkers = { pos: null, op1: null, op2: null, target: null };
 
-/**
- * MGRS文字列（10桁またはそれ以下）を緯度経度[lat, lng]に一発変換する関数
- * @param {string} zone - グリッド指定 (例: "54TYP")
- * @param {string} digits - 座標数字 (例: "0390580872")
- * @returns {Array|null} [緯度, 経度] またはエラー時 null
- */
 function convertMGRSToLatLng(zone, digits) {
-    // 空白を削除して大文字に統一
-    const cleanZone = zone.trim().toUpperCase();
-    const cleanDigits = digits.trim().replace(/\s+/g, '');
+    // 空白やハイフンを完全に除去
+    let cleanZone = zone.trim().toUpperCase().replace(/\s+/g, '');
+    let cleanDigits = digits.trim().replace(/\s+/g, '');
 
     if (!cleanZone || !cleanDigits) return null;
 
     try {
-        // 例: "54TYP" + "0390580872" = "54TYP0390580872" を生成
-        const fullMGRS = cleanZone + cleanDigits;
+        // もしユーザーが「54T」とだけ入れて、数字側に「YP03905...」と入力した場合でも自動結合
+        let fullMGRS = cleanZone + cleanDigits;
         
-        // 外部ライブラリ (mgrs.toPoint) を呼び出して [経度, 緯度] を取得
+        // ハイフンやスペースが含まれていた場合の保険措置として規格を再チェック
+        // 例: "54TYP0390580872" の形を強制的に形成
         const point = mgrs.toPoint(fullMGRS);
-        
-        // Leafletで扱いやすいように [緯度(Lat), 経度(Lng)] の順番に並び替えて返す
-        return [point[1], point[0]];
+        return [point[1], point[0]]; // [緯度, 経度]
     } catch (error) {
-        console.error("MGRS変換エラー:", error);
+        // エラーログをコンソールに出してデバッグしやすくする
+        console.warn("MGRS変換エラー検出（スキップします）:", cleanDigits);
         return null;
     }
 }
 
-/**
- * 画面上の入力フォームから値をすべて回収し、マップにマーカーを展開する
- */
 function processRegistration() {
-    // 1. 各フォームから文字列を取得
     const zone = document.getElementById('mgrs_zone').value;
     const posVal = document.getElementById('mgrs_pos').value;
     const op1Val = document.getElementById('mgrs_op1').value;
     const op2Val = document.getElementById('mgrs_op2').value;
     const tgVal = document.getElementById('mgrs_target').value;
 
-    // グリッド指定がなければ処理を中断
     if (!zone.trim()) {
         alert("グリッド指定（例: 54TYP）を入力してください。");
         return;
     }
 
-    // 2. 各座標を緯度経度に一斉変換
     const coords = {
         pos: convertMGRSToLatLng(zone, posVal),
         op1: convertMGRSToLatLng(zone, op1Val),
+        coords: convertMGRSToLatLng(zone, op2Val), // 予備
         op2: convertMGRSToLatLng(zone, op2Val),
         target: convertMGRSToLatLng(zone, tgVal)
     };
 
     let registeredCount = 0;
-    const bounds = []; // マップ表示を自動調整するための配列
+    const bounds = [];
 
-    // 3. マーカーの配置・更新ループ処理
     const configs = [
         { key: 'pos', name: '陣地', color: '#ff9f43' },
         { key: 'op1', name: '第1観測所 [OP1]', color: '#54a0ff' },
@@ -78,22 +59,20 @@ function processRegistration() {
     configs.forEach(cfg => {
         const latlng = coords[cfg.key];
         
-        // 既存の古いマーカーがあれば一旦消去
         if (tacticalMarkers[cfg.key]) {
             map.removeLayer(tacticalMarkers[cfg.key]);
             tacticalMarkers[cfg.key] = null;
         }
 
-        // 変換に成功した場合のみ新しいマーカーを作成
         if (latlng) {
-            // Leafletのサークルマーカーを使って見やすく描画
+            // 現地でピンが見やすくなるよう、少し大きめのサークルマーカーでプロット
             tacticalMarkers[cfg.key] = L.circleMarker(latlng, {
-                radius: 8,
+                radius: 9,
                 fillColor: cfg.color,
-                color: '#fff',
-                weight: 2,
+                color: '#ffffff',
+                weight: 2.5,
                 opacity: 1,
-                fillOpacity: 0.8
+                fillOpacity: 0.85
             }).addTo(map).bindPopup(`<b>${cfg.name}</b>`);
 
             bounds.push(latlng);
@@ -101,17 +80,16 @@ function processRegistration() {
         }
     });
 
-    // 4. 結果のフィードバックとカメラ移動
     if (registeredCount > 0) {
-        // 入力されたすべてのピンが画面にちょうど収まる位置へ自動でカメラをジャンプさせる
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-        
-        // 右上の「Area」表示を現在のグリッド名に書き換える
+        // 遠軽演習場をバッチリ視認できるズームレベル16へジャンプ
+        if(bounds.length === 1) {
+            map.setView(bounds[0], 16);
+        } else {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+        }
         document.getElementById('info_zone').innerText = `Area: ${zone.trim().toUpperCase()}`;
-        
-        // メニューを自動で閉じる
         closeMenu();
     } else {
-        alert("有効な座標がありません。数字が正しいか確認してください。");
+        alert("座標を解析できませんでした。\n「グリッド指定」に 54TYP、「陣地座標」に 10桁の数字 が入っているかご確認ください。");
     }
 }
