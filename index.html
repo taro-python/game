@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGRS Tactical Map System</title>
-    <!-- Leafletの地図ライブラリを導入 -->
+    <title>MGRS Tactical Map System - Fixed</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -14,17 +13,10 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             user-select: none; color: #e0e0e0;
         }
-        /* 地図レイヤー（最背面） */
-        #map {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1;
-        }
-        /* マス目＆ピン用描画レイヤー（中間：地図の操作を透過させる） */
-        canvas { 
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; 
-            z-index: 2; pointer-events: none; 
-        }
+        #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
 
-        /* ハンバーガーメニューボタン */
+        /* ハンバーガーボタン */
         .menu-btn {
             position: absolute; top: 15px; left: 15px; width: 45px; height: 45px;
             background: rgba(30, 39, 46, 0.9); border: 1px solid #3c6382; border-radius: 8px;
@@ -32,7 +24,7 @@
             justify-content: space-around; padding: 12px; box-sizing: border-box;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .menu-btn div { width: 100%; height: 3px; background: #f5f6fa; border-radius: 2px; transition: 0.3s; }
+        .menu-btn div { width: 100%; height: 3px; background: #f5f6fa; border-radius: 2px; }
 
         /* サイドパネル */
         .side-panel {
@@ -48,34 +40,28 @@
         .menu-header {
             padding: 16px 20px; background: #1e272e; font-weight: bold; font-size: 1em;
             color: #00d2d3; cursor: pointer; display: flex; justify-content: space-between;
-            align-items: center; transition: background 0.2s;
+            align-items: center;
         }
-        .menu-header:hover { background: #2f3542; }
         .menu-header::after { content: '▼'; font-size: 0.8em; color: #718093; transition: transform 0.2s; }
         .menu-category.active .menu-header::after { transform: rotate(-180deg); color: #00d2d3; }
         .menu-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #182026; }
         .menu-category.active .menu-content { max-height: 800px; transition: max-height 0.3s ease-in; }
         .menu-inner-padding { padding: 20px; }
 
-        /* 入力UIフォーム */
+        /* UIフォーム */
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 6px; }
-        .label-zone { color: #00d2d3; } .label-pos { color: #ff9f43; } .label-target { color: #ff6b6b; } 
         input[type="text"] {
             width: 100%; padding: 10px; background: #2f3640; border: 1px solid #57606f;
             border-radius: 6px; color: #fff; font-family: monospace; font-size: 1.1em;
-            font-weight: bold; box-sizing: border-box; letter-spacing: 1px;
+            font-weight: bold; box-sizing: border-box;
         }
-        input[type="text"]:focus { outline: 2px solid #00d2d3; background: #353b48; }
 
-        /* ボタン類 */
         .btn-submit {
             width: 100%; padding: 12px; background: #10ac84; color: white; border: none;
-            border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 10px;
+            border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
-        .btn-submit:hover { background: #1dd1a1; }
         
-        /* 地図切り替え用ボタングループ */
         .map-selector { display: flex; gap: 5px; margin-top: 8px; }
         .btn-map {
             flex: 1; padding: 10px 5px; background: #2c3e50; border: 1px solid #34495e;
@@ -83,12 +69,11 @@
         }
         .btn-map.active { background: #00d2d3; color: #111; border-color: #00d2d3; }
 
-        /* ステータスインフォパネル */
         .info-panel {
             position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7);
             color: #1dd1a1; padding: 10px 14px; border-radius: 6px; font-family: monospace;
-            font-weight: bold; z-index: 10; pointer-events: none; font-size: 0.9em;
-            line-height: 1.4em; text-align: right; border: 1px solid rgba(60, 99, 130, 0.4);
+            font-weight: bold; z-index: 10; pointer-events: none; font-size: 0.9em; text-align: right;
+            border: 1px solid rgba(60, 99, 130, 0.4);
         }
     </style>
 </head>
@@ -99,23 +84,22 @@
 </div>
 
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
-    
     <!-- 1. 座標登録 -->
     <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
                 <div class="input-group">
-                    <label class="label-zone">■ グリッドゾーン指定</label>
-                    <input type="text" id="mgrs_zone" placeholder="例: 54TYP">
+                    <label style="color:#00d2d3;">■ グリッドゾーン指定</label>
+                    <input type="text" id="mgrs_zone" placeholder="例: 54S または 54T">
                 </div>
                 <div class="input-group">
-                    <label class="label-pos">▼ 陣地座標 (赤三角 / 基準点)</label>
+                    <label style="color:#ff9f43;">▼ 陣地座標 (赤三角 / 基準点)</label>
                     <input type="text" id="mgrs_pos" placeholder="例: 12345678">
                 </div>
                 <div class="input-group"><label style="color:#54a0ff;">▼ 第1観測座標 [OP1]</label><input type="text" id="mgrs_op1" placeholder="例: 12505200"></div>
                 <div class="input-group"><label style="color:#00cec9;">▼ 第2観測座標 [OP2]</label><input type="text" id="mgrs_op2" placeholder="例: 12605100"></div>
-                <div class="input-group"><label class="label-target">▼ 目標座標 [TG]</label><input type="text" id="mgrs_target" placeholder="例: 13005500"></div>
+                <div class="input-group"><label style="color:#ff6b6b;">▼ 目標座標 [TG]</label><input type="text" id="mgrs_target" placeholder="例: 13005500"></div>
                 <button class="btn-submit" onclick="processCoordinates()">座標をマップに反映</button>
             </div>
         </div>
@@ -165,10 +149,8 @@
     let points = { pos: {x:0, y:0, valid:false}, op1: {x:0, y:0, valid:false}, op2: {x:0, y:0, valid:false}, target: {x:0, y:0, valid:false} };
 
     // --- Leafletマップ初期化 ---
-    // 初回は日本全体が見える位置。ズームコントロール等は非表示にしてすっきりさせる
-    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.0, 137.0], 5);
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.0, 138.0], 5);
 
-    // 地図タイルレイヤーの定義
     const mapLayers = {
         normal: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
         sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
@@ -176,14 +158,11 @@
     let activeLayerType = 'off';
 
     function changeMapLayer(type) {
-        // 一旦すべてのレイヤーを削除
         if(mapLayers.normal) map.removeLayer(mapLayers.normal);
         if(mapLayers.sat) map.removeLayer(mapLayers.sat);
         
         document.getElementById('map').style.background = (type === 'off') ? '#111' : '#fff';
-        if(type !== 'off') {
-            mapLayers[type].addTo(map);
-        }
+        if(type !== 'off') mapLayers[type].addTo(map);
         
         activeLayerType = type;
         ['normal', 'sat', 'off'].forEach(t => {
@@ -192,38 +171,38 @@
         render();
     }
 
-    // --- MGRS グリッドゾーン簡易デコーダー ---
-    // ゾーンコード(例: 54T)の数字から大まかな経度、文字から大まかな緯度を計算してマップをジャンプさせる
+    // --- 日本主要MGRSグリッドゾーン正確定義データ ---
+    const mgrsZoneRegistry = {
+        // 52帯（九州西部・沖縄など）
+        "52R": [26.0, 127.5, 7],   "52S": [32.0, 129.0, 9],   "52T": [38.0, 129.0, 9],
+        // 53帯（中国、四国、近畿、中部、北陸など）
+        "53R": [26.0, 133.5, 7],   "53S": [32.0, 135.0, 9],   "53T": [38.0, 135.0, 8],  "53U": [42.5, 135.0, 8],
+        // 54帯（関東、東北、北海道など）
+        "54S": [32.0, 141.0, 8],   "54T": [38.0, 141.0, 8],   "54U": [43.0, 142.5, 8],
+        // 55帯（北海道東部など）
+        "55U": [43.0, 147.0, 8]
+    };
+
     function syncToZoneRegion() {
-        const zoneStr = document.getElementById('mgrs_zone').value.trim().toUpperCase();
-        if(!zoneStr) { alert("グリッドゾーン（例: 54TYP）を入力してください。"); return; }
+        let zoneStr = document.getElementById('mgrs_zone').value.trim().toUpperCase();
+        if(!zoneStr) { alert("グリッドゾーンを指定してください (例: 54T)。"); return; }
         
-        currentZone = zoneStr;
-        infoZone.innerText = `Area: ${currentZone}`;
+        // 最初の方の「数字＋アルファベット1文字」（例: 54TYP -> 54T）を取り出す
+        const match = zoneStr.match(/^([0-9]{2}[C-X])/);
+        const code = match ? match[1] : zoneStr.substring(0,3);
 
-        // 最初の方の数字(帯番号)を抽出
-        const numMatch = zoneStr.match(/^([0-9]+)/);
-        if(!numMatch) { alert("有効なゾーン番号が見つかりません。"); return; }
-        const zoneNum = parseInt(numMatch[1]);
-        
-        // 経度の概算計算公式: (Zone - 30) * 6 - 3
-        let approxLng = (zoneNum - 30) * 6 - 3;
-        let approxLat = 36.0; // 日本近辺のデフォルト緯度
-
-        // 文字列後半から緯度帯(C〜X)を推測して精度向上
-        const chars = zoneStr.replace(/[0-9]/g, '');
-        if(chars.length > 0) {
-            const latChar = chars.charAt(0);
-            const charCode = latChar.charCodeAt(0);
-            if(latChar === 'S') approxLat = 34.0;
-            else if(latChar === 'T') approxLat = 38.0;
-            else if(latChar === 'U') approxLat = 42.0;
+        if (mgrsZoneRegistry[code]) {
+            const [lat, lng, defaultZoom] = mgrsZoneRegistry[code];
+            currentZone = zoneStr;
+            infoZone.innerText = `Area: ${currentZone}`;
+            
+            // 正確な座標位置にカメラをジャンプ（100mマスが見やすい少し拡大したズーム10に設定）
+            map.setView([lat, lng], 11);
+            closeMenu();
+            render();
+        } else {
+            alert(`ゾーン「${code}」のプリセットデータがありません。\n日本周辺（52R〜55U）を入力してください。`);
         }
-
-        // 入力地域へスムーズにカメラを移動 (ズームレベルは戦術マップに適した13程度へ)
-        map.setView([approxLat, approxLng], 13);
-        closeMenu();
-        render();
     }
 
     // --- UI表示・アコーディオン制御 ---
@@ -231,11 +210,10 @@
     function closeMenu() { sidePanel.classList.remove('open'); }
     function toggleCategory(id) { document.getElementById(id).classList.toggle('active'); }
 
-    // メニュー外タップで閉じる処理をマップとコンテナに紐付け
     document.getElementById('map').addEventListener('mousedown', closeMenu);
     document.getElementById('map').addEventListener('touchstart', closeMenu);
 
-    // --- MGRS 座標・ミリタリー計算 ---
+    // --- 座標・プロット関係 ---
     function parseMGRS(str) {
         const cleaned = str.replace(/\s+/g, ''); const len = cleaned.length;
         if (len !== 8 && len !== 10) return null;
@@ -249,8 +227,7 @@
 
     function processCoordinates() {
         const zoneInput = document.getElementById('mgrs_zone').value.trim().toUpperCase();
-        if(zoneInput) currentZone = zoneInput;
-
+        
         const rawPos = parseMGRS(document.getElementById('mgrs_pos').value);
         const rawOp1 = parseMGRS(document.getElementById('mgrs_op1').value);
         const rawOp2 = parseMGRS(document.getElementById('mgrs_op2').value);
@@ -263,42 +240,34 @@
         points.op2 = rawOp2 ? { x: rawOp2.e - rawPos.e, y: rawOp2.n - rawPos.n, valid: true } : { valid: false };
         points.target = rawTarget ? { x: rawTarget.e - rawPos.e, y: rawTarget.n - rawPos.n, valid: true } : { valid: false };
 
-        closeMenu();
-        
-        // もしゾーンが入力されていればその地域へジャンプ
-        if(zoneInput) syncToZoneRegion();
-        else render();
+        if(zoneInput) {
+            document.getElementById('mgrs_zone').value = zoneInput;
+            syncToZoneRegion();
+        } else {
+            closeMenu();
+            render();
+        }
     }
 
-    // --- マップ連動型 Canvas 描画システム ---
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        render();
-    }
+    // --- 描画ロジック ---
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
 
     function render() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 現在のマップの中心点を基準ピクセルとして取得
         const mapCenterPX = map.latLngToContainerPoint(map.getCenter());
-        
-        // Leafletのスケール（1ピクセルが何メートルに相当するか）を取得
-        const centerLatLng = map.getCenter();
         const p1 = map.containerPointToLatLng([0, 0]);
         const p2 = map.containerPointToLatLng([100, 0]);
         const metersPer100Px = p1.distanceTo(p2);
-        const currentScale = 100 / metersPer100Px; // ピクセル / メートル倍率
+        const currentScale = 100 / metersPer100Px; 
 
-        const meterPerGrid = 100; // 1マス = 100メートル固定
+        const meterPerGrid = 100; 
         const gStep = meterPerGrid * currentScale;
 
-        // --- 1. マス目（グリッド）の描画 ---
-        // 地図が見えなくならないよう、地図ONの時は線の透明度を上げる
-        ctx.strokeStyle = (activeLayerType === 'off') ? "rgba(44, 62, 80, 0.6)" : "rgba(44, 62, 80, 0.4)";
+        ctx.strokeStyle = (activeLayerType === 'off') ? "rgba(74, 105, 124, 0.6)" : "rgba(16, 172, 132, 0.5)";
         ctx.lineWidth = 1;
         
-        if (gStep > 5) { // マス目が細かくなりすぎない場合のみ描画
+        if (gStep > 6) { 
             const startX = mapCenterPX.x % gStep;
             for (let x = startX; x < canvas.width; x += gStep) { 
                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); 
@@ -309,10 +278,9 @@
             }
         }
 
-        // メートル相対座標を現在の画面ピクセル位置へ再計算
         const toPX = (mx, my) => ({
             x: mapCenterPX.x + mx * currentScale,
-            y: mapCenterPX.y - my * currentScale // MGRSの北方向[+Y]を上向きにする
+            y: mapCenterPX.y - my * currentScale 
         });
 
         const drawTriangle = (p, color, label) => {
@@ -322,17 +290,13 @@
             ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
             ctx.shadowBlur = 4; ctx.shadowColor = "#000";
             ctx.fillText(label, p.x + 16, p.y + 5);
-            ctx.shadowBlur = 0; // シャドウリセット
+            ctx.shadowBlur = 0;
         };
 
-        // ① 陣地座標 (赤三角)
         if (points.pos.valid) drawTriangle(toPX(points.pos.x, points.pos.y), "#ff9f43", "陣地");
-        // ② 第1観測座標 (青三角)
         if (points.op1.valid) drawTriangle(toPX(points.op1.x, points.op1.y), "#54a0ff", "OP1");
-        // ③ 第2観測座標 (水色三角)
         if (points.op2.valid) drawTriangle(toPX(points.op2.x, points.op2.y), "#00cec9", "OP2");
 
-        // ④ 目標座標 (赤十字)
         if (points.target.valid) {
             const p = toPX(points.target.x, points.target.y);
             ctx.strokeStyle = "#ff6b6b"; ctx.lineWidth = 4; ctx.beginPath();
@@ -346,15 +310,12 @@
             ctx.shadowBlur = 0;
         }
 
-        // 右上情報更新
         infoZone.innerText = `Area: ${currentZone || '--'}`;
-        infoScale.innerText = `Zoom Level: ${map.getZoom()} (1マス=100m)`;
+        infoScale.innerText = `Zoom: ${map.getZoom()} (1マス=100m)`;
     }
 
-    // 地図の動き（ドラッグ・ズーム）に合わせてCanvasの描画を100%同期させる
     map.on('move', render);
     map.on('zoom', render);
-
     window.onresize = resizeCanvas;
     window.onload = () => { resizeCanvas(); changeMapLayer('off'); };
 </script>
