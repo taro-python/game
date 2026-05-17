@@ -1,27 +1,21 @@
 /**
- * MGRS Tactical Map - Coordinates Processor (固定版)
+ * MGRS Tactical Map - Coordinates Processor (バグ修正版)
  */
 
 const tacticalMarkers = { pos: null, op1: null, op2: null, target: null };
 
 function convertMGRSToLatLng(zone, digits) {
-    // 空白やハイフンを完全に除去
     let cleanZone = zone.trim().toUpperCase().replace(/\s+/g, '');
     let cleanDigits = digits.trim().replace(/\s+/g, '');
 
     if (!cleanZone || !cleanDigits) return null;
 
     try {
-        // もしユーザーが「54T」とだけ入れて、数字側に「YP03905...」と入力した場合でも自動結合
         let fullMGRS = cleanZone + cleanDigits;
-        
-        // ハイフンやスペースが含まれていた場合の保険措置として規格を再チェック
-        // 例: "54TYP0390580872" の形を強制的に形成
         const point = mgrs.toPoint(fullMGRS);
         return [point[1], point[0]]; // [緯度, 経度]
     } catch (error) {
-        // エラーログをコンソールに出してデバッグしやすくする
-        console.warn("MGRS変換エラー検出（スキップします）:", cleanDigits);
+        console.warn("MGRS変換エラー検出:", cleanDigits);
         return null;
     }
 }
@@ -38,10 +32,10 @@ function processRegistration() {
         return;
     }
 
+    // ★タイポを完全に修正しました
     const coords = {
         pos: convertMGRSToLatLng(zone, posVal),
         op1: convertMGRSToLatLng(zone, op1Val),
-        coords: convertMGRSToLatLng(zone, op2Val), // 予備
         op2: convertMGRSToLatLng(zone, op2Val),
         target: convertMGRSToLatLng(zone, tgVal)
     };
@@ -65,7 +59,6 @@ function processRegistration() {
         }
 
         if (latlng) {
-            // 現地でピンが見やすくなるよう、少し大きめのサークルマーカーでプロット
             tacticalMarkers[cfg.key] = L.circleMarker(latlng, {
                 radius: 9,
                 fillColor: cfg.color,
@@ -81,7 +74,6 @@ function processRegistration() {
     });
 
     if (registeredCount > 0) {
-        // 遠軽演習場をバッチリ視認できるズームレベル16へジャンプ
         if(bounds.length === 1) {
             map.setView(bounds[0], 16);
         } else {
