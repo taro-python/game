@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGRS Plotter - Hierarchical Menu</title>
+    <title>MGRS Plotter - Layer 1 Default</title>
     <style>
         body { 
             font-family: 'Helvetica Neue', Arial, sans-serif; 
@@ -50,7 +50,7 @@
             transition: 0.3s;
         }
 
-        /* サイドパネル（少し幅を広げて320pxに最適化） */
+        /* サイドパネル */
         .side-panel {
             position: absolute;
             top: 0;
@@ -75,7 +75,7 @@
             border-bottom: 1px solid #2c3e50;
         }
         .menu-header {
-            padding: 15px 20px;
+            padding: 16px 20px;
             background: #1e272e;
             font-weight: bold;
             font-size: 1em;
@@ -96,6 +96,7 @@
             color: #718093;
             transition: transform 0.2s;
         }
+        /* アクティブ時（展開時）の矢印回転 */
         .menu-category.active .menu-header::after {
             transform: rotate(-180deg);
             color: #00d2d3;
@@ -109,7 +110,7 @@
             background: #182026;
         }
         .menu-category.active .menu-content {
-            max-height: 800px; /* 十分な高さを確保 */
+            max-height: 800px; /* 展開時の最大高さ */
             transition: max-height 0.3s ease-in;
         }
         .menu-inner-padding {
@@ -203,8 +204,8 @@
 <!-- サイドパネル -->
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
     
-    <!-- 第1階層：座標登録 -->
-    <div class="menu-category active" id="cat_registration">
+    <!-- 第1階層：座標登録（初期状態は閉じた状態に変更） -->
+    <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
@@ -284,7 +285,6 @@
         target: { x: 0, y: 0, valid: false }    
     };
 
-    // メニュー全体の開閉
     function toggleMenu(e) {
         if(e) e.stopPropagation();
         sidePanel.classList.toggle('open');
@@ -296,13 +296,11 @@
         }
     }
 
-    // 各アコーディオンカテゴリの開閉切り替え
     function toggleCategory(id) {
         const cat = document.getElementById(id);
         cat.classList.toggle('active');
     }
 
-    // マップの表示位置を中心（初期位置）に戻す
     function resetView() {
         scale = 0.5;
         offset.x = canvas.width / 2;
@@ -429,7 +427,6 @@
         }; 
     }
 
-    // --- 各種イベント ---
     canvas.addEventListener('touchstart', e => {
         if(sidePanel.classList.contains('open')) { closeMenu(); return; }
         if(e.touches.length == 1){ isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
