@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGRS Tactical Map System - Realtime Move Precision</title>
+    <title>Tactical Map - Base Menu System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
+        /* 画面全体の基本設定 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; background: #111;
             font-family: 'Helvetica Neue', Arial, sans-serif;
             user-select: none; color: #e0e0e0;
         }
+        
+        /* マップとキャンバスの配置 */
         #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
 
-        /* UIレイアウト */
+        /* 1階層目：ハンバーガーメニューボタン */
         .menu-btn {
             position: absolute; top: 15px; left: 15px; width: 45px; height: 45px;
             background: rgba(30, 39, 46, 0.9); border: 1px solid #3c6382; border-radius: 8px;
@@ -26,6 +29,7 @@
         }
         .menu-btn div { width: 100%; height: 3px; background: #f5f6fa; border-radius: 2px; }
 
+        /* スライド式のサイドパネル（メニュー本体） */
         .side-panel {
             position: absolute; top: 0; left: -340px; width: 320px; height: 100vh;
             background: rgba(24, 32, 38, 0.98); box-shadow: 5px 0 25px rgba(0,0,0,0.7);
@@ -34,17 +38,25 @@
         }
         .side-panel.open { transform: translateX(340px); }
 
+        /* 2階層目：メニューのカテゴリー（アコーディオン）構造 */
         .menu-category { border-bottom: 1px solid #2c3e50; }
+        
+        /* カテゴリーのタイトル部分 */
         .menu-header {
             padding: 16px 20px; background: #1e272e; font-weight: bold; font-size: 1em;
             color: #00d2d3; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
         }
-        .menu-header::after { content: '▼'; font-size: 0.8em; color: #718093; }
+        .menu-header::after { content: '▼'; font-size: 0.8em; color: #718093; transition: transform 0.3s; }
+        
+        /* アクティブ時（展開時）の矢印の向き変更 */
         .menu-category.active .menu-header::after { transform: rotate(-180deg); color: #00d2d3; }
+        
+        /* カテゴリーの中身（初期状態は非表示） */
         .menu-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #182026; }
-        .menu-category.active .menu-content { max-height: 800px; transition: max-height 0.3s ease-in; }
+        .menu-category.active .menu-content { max-height: 500px; transition: max-height 0.3s ease-in; }
         .menu-inner-padding { padding: 20px; }
 
+        /* 入力フォームの基本スタイル */
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 6px; }
         input[type="text"] {
@@ -56,14 +68,8 @@
             width: 100%; padding: 12px; background: #10ac84; color: white; border: none;
             border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px;
         }
-        
-        .map-selector { display: flex; gap: 5px; margin-top: 8px; }
-        .btn-map {
-            flex: 1; padding: 10px 5px; background: #2c3e50; border: 1px solid #34495e;
-            color: #bdc3c7; font-size: 0.85em; font-weight: bold; border-radius: 4px; cursor: pointer;
-        }
-        .btn-map.active { background: #00d2d3; color: #111; border-color: #00d2d3; }
 
+        /* 画面右上の情報パネル */
         .info-panel {
             position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7);
             color: #1dd1a1; padding: 10px 14px; border-radius: 6px; font-family: monospace;
@@ -74,289 +80,93 @@
 </head>
 <body>
 
+<!-- 1階層目：メニューを開閉するボタン -->
 <div class="menu-btn" onclick="toggleMenu(event)">
     <div></div><div></div><div></div>
 </div>
 
+<!-- サイドパネル本体 -->
 <div class="side-panel" id="sidePanel" onclick="event.stopPropagation()">
+    
+    <!-- 2階層目：カテゴリー1「座標登録」 -->
     <div class="menu-category" id="cat_registration">
         <div class="menu-header" onclick="toggleCategory('cat_registration')">座標登録</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
                 <div class="input-group">
-                    <label style="color:#00d2d3;">■ グリッド指定 (例: 54TYP)</label>
+                    <label style="color:#00d2d3;">■ グリッド指定</label>
                     <input type="text" id="mgrs_zone" placeholder="例: 54TYP" value="54TYP">
                 </div>
                 <div class="input-group">
-                    <label style="color:#ff9f43;">▼ 陣地座標 (数字 8桁/10桁)</label>
-                    <input type="text" id="mgrs_pos" placeholder="例: 12345678">
+                    <label style="color:#ff9f43;">▼ 陣地座標</label>
+                    <input type="text" id="mgrs_pos" placeholder="例: 0390580872" value="0390580872">
                 </div>
-                <div class="input-group"><label style="color:#54a0ff;">▼ 第1観測座標 [OP1]</label><input type="text" id="mgrs_op1" placeholder="例: 12505200"></div>
-                <div class="input-group"><label style="color:#00cec9;">▼ 第2観測座標 [OP2]</label><input type="text" id="mgrs_op2" placeholder="例: 12605100"></div>
-                <div class="input-group"><label style="color:#ff6b6b;">▼ 目標座標 [TG]</label><input type="text" id="mgrs_target" placeholder="例: 13005500"></div>
-                <button class="btn-submit" onclick="processCoordinates()">座標をマップに反映</button>
+                <button class="btn-submit" onclick="alert('座標登録の処理（予定）')">座標をマップに反映</button>
             </div>
         </div>
     </div>
 
+    <!-- 2階層目：カテゴリー2「マップ表示」 -->
     <div class="menu-category" id="cat_map_display">
         <div class="menu-header" onclick="toggleCategory('cat_map_display')">マップ表示</div>
         <div class="menu-content">
             <div class="menu-inner-padding">
-                <label style="font-size:0.85em; font-weight:bold; color:#fff;">■ 背景地図切り替え</label>
-                <div class="map-selector">
-                    <button class="btn-map" id="btn_map_normal" onclick="changeMapLayer('normal')">通常地図</button>
-                    <button class="btn-map" id="btn_map_sat" onclick="changeMapLayer('sat')">航空地図</button>
-                    <button class="btn-map active" id="btn_map_off" onclick="changeMapLayer('off')">オフ</button>
-                </div>
+                <p style="margin:0; font-size:0.9em; color:#a4b0be;">※ここに地図切り替え等の機能を配置します。</p>
             </div>
         </div>
     </div>
+
 </div>
 
+<!-- 画面右上のステータス表示 -->
 <div class="info-panel" id="info">
     <div id="info_zone">Area: --</div>
     <div id="info_scale">Scale: --</div>
 </div>
 
+<!-- 地図表示エリア -->
 <div id="map"></div>
+<!-- グリッド描画用キャンバス -->
 <canvas id="gridCanvas"></canvas>
 
 <script>
+    const sidePanel = document.getElementById('sidePanel');
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
-    const infoZone = document.getElementById('info_zone');
-    const infoScale = document.getElementById('info_scale');
-    const sidePanel = document.getElementById('sidePanel');
+
+    // 地図の仮初期化（一旦日本全体が見えるくらいに設定）
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.0, 138.0], 5);
     
-    let currentZone = "";
-    let baseLatLng = null;
-    let points = { pos: {x:0, y:0, valid:false}, op1: {x:0, y:0, valid:false}, op2: {x:0, y:0, valid:false}, target: {x:0, y:0, valid:false} };
+    // 背景を暗くしておく（地図レイヤー未適用状態）
+    document.getElementById('map').style.background = '#111';
 
-    // マップ初期化
-    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.5, 144.2], 8);
-
-    const mapLayers = {
-        normal: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-        sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
-    };
-    let activeLayerType = 'off';
-
-    function changeMapLayer(type) {
-        if(mapLayers.normal) map.removeLayer(mapLayers.normal);
-        if(mapLayers.sat) map.removeLayer(mapLayers.sat);
-        
-        document.getElementById('map').style.background = (type === 'off') ? '#111' : '#fff';
-        if(type !== 'off') mapLayers[type].addTo(map);
-        
-        activeLayerType = type;
-        ['normal', 'sat', 'off'].forEach(t => {
-            document.getElementById(`btn_map_${t}`).classList.toggle('active', t === type);
-        });
-        render();
+    // 【1階層目】ハンバーガーメニューの開閉
+    function toggleMenu(e) {
+        if(e) e.stopPropagation();
+        sidePanel.classList.toggle('open');
     }
 
-    // --- 【動的移動完全対応】高精度MGRS逆演算デコーダー ---
-    function mgrsToLatLng(zoneStr, numericStr) {
-        const cleanZone = zoneStr.replace(/\s+/g, '').toUpperCase();
-        const cleanNum = numericStr.replace(/\s+/g, '');
-        
-        if (cleanZone.length < 5 || (cleanNum.length !== 8 && cleanNum.length !== 10)) return null;
-
-        const utmZone = parseInt(cleanZone.substring(0, 2));
-        const latZoneChar = cleanZone.charAt(2);
-        const colChar = cleanZone.charAt(3);
-        const rowChar = cleanZone.charAt(4);
-
-        // 1. UTM中央経度
-        const originLng = (utmZone - 1) * 6 - 180 + 3;
-
-        // 2. 100km平方 Column (横列) の計算
-        const colLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        const colSetIdx = utmZone % 3;
-        let colOriginIdx = colLetters.indexOf(colChar);
-        let utmEasting = ((colOriginIdx + 1) - (colSetIdx === 1 ? 0 : (colSetIdx === 2 ? 8 : 16))) * 100000;
-        
-        if(utmZone === 54) utmEasting -= 300000;
-
-        // 3. 100km平方 Row (縦列) の計算
-        const rowLetters = "ABCDEFGHJKLMNPQRSTUV";
-        const rowSetIdx = utmZone % 2; 
-        let rowOriginIdx = rowLetters.indexOf(rowChar);
-        let rowOffset = rowSetIdx === 1 ? 0 : 5;
-
-        // 道東54Tエリアを正確に割り出すための動的ベース高度判定
-        let approxNorthing = 4400000; 
-        if (latZoneChar === 'T' && utmZone === 54 && (colChar === 'X' || colChar === 'Y')) {
-            approxNorthing = 4800000; // 道東突き抜け用ベース
-        } else if (latZoneChar === 'U') {
-            approxNorthing = 4800000;
-        }
-
-        // ここがバグの原因でした：数値を含めて正しく100km境界を跨げるように丸め処理を修正
-        let utmNorthing = Math.round((approxNorthing - (rowOriginIdx - rowOffset) * 100000) / 2000000) * 2000000 + (rowOriginIdx - rowOffset) * 100000;
-
-        // 4. 入力された数字座標(動的な値)を純粋に加算
-        const half = cleanNum.length / 2;
-        let localEast = parseInt(cleanNum.substring(0, half));
-        let localNorth = parseInt(cleanNum.substring(half));
-        if(cleanNum.length === 8) { localEast *= 10; localNorth *= 10; }
-
-        utmEasting += localEast;
-        utmNorthing += localNorth;
-
-        // 5. UTMから緯度経度(WGS84)への逆コンバート
-        const k0 = 0.9996;
-        const a = 6378137;
-        const eccSquared = 0.00669438;
-        const e1 = (1 - Math.sqrt(1 - eccSquared)) / (1 + Math.sqrt(1 - eccSquared));
-
-        let x = utmEasting - 500000;
-        let y = utmNorthing;
-
-        let M = y / k0;
-        let mu = M / (a * (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256));
-
-        let phi1Rad = mu + (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * Math.sin(2 * mu) 
-                     + (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * Math.sin(4 * mu);
-
-        let N1 = a / Math.sqrt(1 - eccSquared * Math.sin(phi1Rad) * Math.sin(phi1Rad));
-        let T1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
-        let C1 = eccSquared * Math.cos(phi1Rad) * Math.cos(phi1Rad) / (1 - eccSquared);
-        let R1 = a * (1 - eccSquared) / Math.pow(1 - eccSquared * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
-        let D = x / (N1 * k0);
-
-        let lat = phi1Rad - (N1 * Math.tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccSquared) * D * D * D * D / 24);
-        let lng = (D - (1 + 2 * T1 + C1) * D * D * D / 6) / Math.cos(phi1Rad);
-
-        lat = lat * 180 / Math.PI;
-        lng = originLng + (lng * 180 / Math.PI);
-
-        return L.latLng(lat, lng);
+    function closeMenu() {
+        sidePanel.classList.remove('open');
     }
 
-    // --- 座標読み込み・反映 ---
-    function processCoordinates() {
-        const zoneInput = document.getElementById('mgrs_zone').value.trim().toUpperCase();
-        const posInput = document.getElementById('mgrs_pos').value.trim();
-
-        if(!zoneInput || !posInput) {
-            alert("「グリッド指定(例:54TYP)」と「陣地座標」を入力してください。");
-            return;
-        }
-
-        const calculatedLatLng = mgrsToLatLng(zoneInput, posInput);
-
-        if (!calculatedLatLng) {
-            alert("座標の逆算に失敗しました。桁数などを確認してください。");
-            return;
-        }
-
-        baseLatLng = calculatedLatLng;
-        currentZone = zoneInput;
-
-        const parseRaw = (str) => {
-            const cleaned = str.replace(/\s+/g, '');
-            if(cleaned.length !== 8 && cleaned.length !== 10) return null;
-            const half = cleaned.length / 2;
-            let e = parseInt(cleaned.substring(0, half));
-            let n = parseInt(cleaned.substring(half));
-            if(cleaned.length === 8) { e *= 10; n *= 10; }
-            return { e, n };
-        };
-
-        const baseRaw = parseRaw(posInput);
-        const op1Raw = parseRaw(document.getElementById('mgrs_op1').value);
-        const op2Raw = parseRaw(document.getElementById('mgrs_op2').value);
-        const tgRaw = parseRaw(document.getElementById('mgrs_target').value);
-
-        points.pos = { x: 0, y: 0, valid: true };
-        points.op1 = op1Raw ? { x: op1Raw.e - baseRaw.e, y: op1Raw.n - baseRaw.n, valid: true } : { valid: false };
-        points.op2 = op2Raw ? { x: op2Raw.e - baseRaw.e, y: op2Raw.n - baseRaw.n, valid: true } : { valid: false };
-        points.target = tgRaw ? { x: tgRaw.e - baseRaw.e, y: tgRaw.n - baseRaw.n, valid: true } : { valid: false };
-
-        // 表示スケールをさらに拡大「15」に変更（陣地周辺がより大きく、はっきり見えます）
-        map.setView(baseLatLng, 15); 
-        closeMenu();
-        render();
+    // 【2階層目】アコーディオンの開閉
+    function toggleCategory(id) {
+        document.getElementById(id).classList.toggle('active');
     }
 
-    function toggleMenu(e) { if(e) e.stopPropagation(); sidePanel.classList.toggle('open'); }
-    function closeMenu() { sidePanel.classList.remove('open'); }
-    function toggleCategory(id) { document.getElementById(id).classList.toggle('active'); }
-
+    // マップ上をタップしたらメニューを閉じる
     document.getElementById('map').addEventListener('mousedown', closeMenu);
     document.getElementById('map').addEventListener('touchstart', closeMenu);
 
-    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
-
-    function render() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if(!baseLatLng) return;
-
-        const basePX = map.latLngToContainerPoint(baseLatLng);
-        const p1 = map.containerPointToLatLng([0, 0]);
-        const p2 = map.containerPointToLatLng([100, 0]);
-        const currentScale = 100 / p1.distanceTo(p2); 
-
-        const gStep = 100 * currentScale; 
-
-        ctx.strokeStyle = (activeLayerType === 'off') ? "rgba(74, 105, 124, 0.6)" : "rgba(16, 172, 132, 0.5)";
-        ctx.lineWidth = 1;
-        
-        if (gStep > 6) { 
-            const startX = basePX.x % gStep;
-            for (let x = startX; x < canvas.width; x += gStep) { 
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); 
-            }
-            const startY = basePX.y % gStep;
-            for (let y = startY; y < canvas.height; y += gStep) { 
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); 
-            }
-        }
-
-        const toPX = (mx, my) => ({
-            x: basePX.x + mx * currentScale,
-            y: basePX.y - my * currentScale 
-        });
-
-        const drawTriangle = (p, color, label) => {
-            if(p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) return;
-            ctx.fillStyle = color; ctx.beginPath();
-            ctx.moveTo(p.x, p.y - 12); ctx.lineTo(p.x + 12, p.y + 10); ctx.lineTo(p.x - 12, p.y + 10);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
-            ctx.shadowBlur = 4; ctx.shadowColor = "#000";
-            ctx.fillText(label, p.x + 16, p.y + 5);
-            ctx.shadowBlur = 0;
-        };
-
-        if (points.pos.valid) drawTriangle(toPX(points.pos.x, points.pos.y), "#ff9f43", "陣地");
-        if (points.op1.valid) drawTriangle(toPX(points.op1.x, points.op1.y), "#54a0ff", "OP1");
-        if (points.op2.valid) drawTriangle(toPX(points.op2.x, points.op2.y), "#00cec9", "OP2");
-
-        if (points.target.valid) {
-            const p = toPX(points.target.x, points.target.y);
-            if(!(p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height)) {
-                ctx.strokeStyle = "#ff6b6b"; ctx.lineWidth = 4; ctx.beginPath();
-                ctx.moveTo(p.x - 15, p.y); ctx.lineTo(p.x + 15, p.y);
-                ctx.moveTo(p.x, p.y - 15); ctx.lineTo(p.x, p.y + 15);
-                ctx.stroke();
-                ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
-                ctx.shadowBlur = 4; ctx.shadowColor = "#000";
-                ctx.fillText("目標(TG)", p.x + 18, p.y + 5);
-                ctx.shadowBlur = 0;
-            }
-        }
-
-        infoZone.innerText = `Area: ${currentZone}`;
-        infoScale.innerText = `Zoom: ${map.getZoom()} (1マス=100m)`;
+    // キャンバスのサイズ調整
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     }
 
-    map.on('move', render);
-    map.on('zoom', render);
     window.onresize = resizeCanvas;
-    window.onload = () => { resizeCanvas(); changeMapLayer('off'); };
+    window.onload = () => { resizeCanvas(); };
 </script>
 </body>
 </html>
